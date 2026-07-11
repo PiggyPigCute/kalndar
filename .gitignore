@@ -1,2 +1,3 @@
 node_modules/
-data/events.json
+game/data/events.json
+game/data/members.json

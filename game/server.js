@@ -12,7 +12,7 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static('public'));
 
-const membersPath = path.join(__dirname, 'members.json');
+const membersPath = path.join(__dirname, 'data/members.json');
 const eventsPath = path.join(__dirname, 'data', 'events.json');
 
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
