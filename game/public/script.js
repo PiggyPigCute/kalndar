@@ -8,6 +8,7 @@ let events = [];
 let currentMember = null;
 let loginMemberId = null;
 let currentDate = new Date();
+let selectedDate = todayString();
 let editingEventId = null;
 
 const identityScreen = document.getElementById('identityScreen');
@@ -28,6 +29,9 @@ const prevMonthBtn = document.getElementById('prevMonthBtn');
 const nextMonthBtn = document.getElementById('nextMonthBtn');
 const todayBtn = document.getElementById('todayBtn');
 const newEventBtn = document.getElementById('newEventBtn');
+const dayPanelDate = document.getElementById('dayPanelDate');
+const dayPanelList = document.getElementById('dayPanelList');
+const dayPanelAddBtn = document.getElementById('dayPanelAddBtn');
 
 const modalOverlay = document.getElementById('eventModalOverlay');
 const modalTitle = document.getElementById('modalTitle');
@@ -50,6 +54,20 @@ function todayString() {
 }
 
 function memberById(id) { return members.find(m => m.id === id); }
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatFullDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const weekday = date.toLocaleDateString('fr-FR', { weekday: 'long' });
+  const dayMonth = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${dayMonth} ${y}`;
+}
 
 async function fetchJSON(url, options) {
   const res = await fetch(url, options);
@@ -137,6 +155,7 @@ async function showApp(member) {
   appScreen.classList.remove('hidden');
   await loadEvents();
   renderCalendar();
+  renderDayPanel();
 }
 
 switchIdentityBtn.addEventListener('click', async () => {
@@ -200,7 +219,10 @@ function renderCalendar() {
 
   cells.forEach(cell => {
     const cellEl = document.createElement('div');
-    cellEl.className = 'day-cell' + (cell.outside ? ' outside' : '') + (cell.date === today ? ' today' : '');
+    cellEl.className = 'day-cell'
+      + (cell.outside ? ' outside' : '')
+      + (cell.date === today ? ' today' : '')
+      + (cell.date === selectedDate ? ' selected' : '');
 
     const numberEl = document.createElement('div');
     numberEl.className = 'day-number';
@@ -216,6 +238,7 @@ function renderCalendar() {
       pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
       pill.addEventListener('click', (e) => {
         e.stopPropagation();
+        selectDate(cell.date);
         openEditModal(ev);
       });
       cellEl.appendChild(pill);
@@ -228,10 +251,58 @@ function renderCalendar() {
       cellEl.appendChild(more);
     }
 
-    cellEl.addEventListener('click', () => openNewModal(cell.date));
+    cellEl.addEventListener('click', () => selectDate(cell.date));
     calendarGrid.appendChild(cellEl);
   });
 }
+
+function selectDate(date) {
+  selectedDate = date;
+  renderCalendar();
+  renderDayPanel();
+}
+
+function renderDayPanel() {
+  dayPanelDate.textContent = formatFullDate(selectedDate);
+
+  const dayEvents = events
+    .filter(ev => ev.date === selectedDate)
+    .sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99'));
+
+  dayPanelList.innerHTML = '';
+
+  if (dayEvents.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'day-panel-empty';
+    empty.textContent = 'Aucun événement ce jour.';
+    dayPanelList.appendChild(empty);
+    return;
+  }
+
+  dayEvents.forEach(ev => {
+    const member = memberById(ev.memberId);
+    const timeLabel = ev.startTime
+      ? (ev.endTime ? `${ev.startTime}–${ev.endTime}` : ev.startTime)
+      : 'Toute la journée';
+
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'day-panel-item';
+    item.style.setProperty('--item-color', member ? member.color : '#999');
+    item.innerHTML = `
+      <div class="day-panel-item-time">${escapeHtml(timeLabel)}</div>
+      <div class="day-panel-item-body">
+        <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
+        ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
+        <div class="day-panel-item-member">${escapeHtml(member ? member.name : '')}</div>
+      </div>
+    `;
+    item.addEventListener('click', () => openEditModal(ev));
+    dayPanelList.appendChild(item);
+  });
+}
+
+dayPanelAddBtn.addEventListener('click', () => openNewModal(selectedDate));
 
 prevMonthBtn.addEventListener('click', () => {
   currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
@@ -245,7 +316,7 @@ nextMonthBtn.addEventListener('click', () => {
 
 todayBtn.addEventListener('click', () => {
   currentDate = new Date();
-  renderCalendar();
+  selectDate(todayString());
 });
 
 // --- Event modal ---
@@ -298,7 +369,7 @@ cancelModalBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', (e) => {
   if (e.target === modalOverlay) closeModal();
 });
-newEventBtn.addEventListener('click', () => openNewModal(todayString()));
+newEventBtn.addEventListener('click', () => openNewModal(selectedDate));
 
 eventForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -330,6 +401,7 @@ eventForm.addEventListener('submit', async (e) => {
     closeModal();
     await loadEvents();
     renderCalendar();
+    renderDayPanel();
   } catch (err) {
     if (err.status === 401) {
       closeModal();
@@ -350,6 +422,7 @@ deleteEventBtn.addEventListener('click', async () => {
     closeModal();
     await loadEvents();
     renderCalendar();
+    renderDayPanel();
   } catch (err) {
     if (err.status === 401) {
       closeModal();
@@ -370,6 +443,7 @@ socket.on('events:changed', async () => {
   try {
     await loadEvents();
     renderCalendar();
+    renderDayPanel();
   } catch (err) {
     if (err.status === 401) {
       renderIdentityScreen();

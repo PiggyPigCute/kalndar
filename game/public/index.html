@@ -39,18 +39,30 @@
     </div>
   </header>
 
-  <div class="toolbar">
-    <div class="nav-group">
-      <button id="prevMonthBtn" class="icon-btn" aria-label="Mois précédent">‹</button>
-      <button id="todayBtn" class="today-btn">Aujourd'hui</button>
-      <button id="nextMonthBtn" class="icon-btn" aria-label="Mois suivant">›</button>
-    </div>
-    <h2 id="monthLabel" class="month-label"></h2>
-    <button id="newEventBtn" class="primary-btn">+ Nouvel événement</button>
-  </div>
+  <div class="app-layout">
+    <div class="calendar-main">
+      <div class="toolbar">
+        <div class="nav-group">
+          <button id="prevMonthBtn" class="icon-btn" aria-label="Mois précédent">‹</button>
+          <button id="todayBtn" class="today-btn">Aujourd'hui</button>
+          <button id="nextMonthBtn" class="icon-btn" aria-label="Mois suivant">›</button>
+        </div>
+        <h2 id="monthLabel" class="month-label"></h2>
+        <button id="newEventBtn" class="primary-btn">+ Nouvel événement</button>
+      </div>
 
-  <div class="weekdays" id="weekdaysRow"></div>
-  <div class="calendar-grid" id="calendarGrid"></div>
+      <div class="weekdays" id="weekdaysRow"></div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <aside class="day-panel">
+      <div class="day-panel-header">
+        <h2 id="dayPanelDate"></h2>
+        <button id="dayPanelAddBtn" class="primary-btn">+ Ajouter</button>
+      </div>
+      <div class="day-panel-list" id="dayPanelList"></div>
+    </aside>
+  </div>
 </div>
 
 <div id="eventModalOverlay" class="modal-overlay hidden">
