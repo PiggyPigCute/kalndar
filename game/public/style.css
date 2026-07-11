@@ -1,4 +1,9 @@
 :root {
+  --bg: #16171d;
+  --surface: #1e1f27;
+  --border: #2e2f3a;
+  --text: #edeef4;
+  --text-muted: #9497a6;
   --accent: #3B82F6;
   --accent-hover: #2f6fd6;
   --danger: #e0503c;
@@ -289,7 +294,7 @@ body {
   font-size: 0.72rem;
   padding: 2px 6px;
   border-radius: 5px;
-  color: var(--surface);
+  color: var(--surfaceZ);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
