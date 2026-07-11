@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalndar — calendrier familial</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="identityScreen" class="screen hidden">
+  <div class="identity-card">
+    <h1>Qui es-tu ?</h1>
+    <div id="identityList" class="identity-list"></div>
+  </div>
+</div>
+
+<div id="appScreen" class="screen hidden">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>📅 Kalndar</h1>
+    </div>
+    <div class="topbar-right">
+      <span id="currentIdentity" class="identity-pill"></span>
+      <button id="switchIdentityBtn" class="link-btn">changer</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="nav-group">
+      <button id="prevMonthBtn" class="icon-btn" aria-label="Mois précédent">‹</button>
+      <button id="todayBtn" class="today-btn">Aujourd'hui</button>
+      <button id="nextMonthBtn" class="icon-btn" aria-label="Mois suivant">›</button>
+    </div>
+    <h2 id="monthLabel" class="month-label"></h2>
+    <button id="newEventBtn" class="primary-btn">+ Nouvel événement</button>
+  </div>
+
+  <div class="weekdays" id="weekdaysRow"></div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+</div>
+
+<div id="eventModalOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h2 id="modalTitle">Nouvel événement</h2>
+    <form id="eventForm">
+      <label>
+        Titre
+        <input type="text" id="fieldTitle" required maxlength="200" placeholder="Ex : Anniversaire de Léa">
+      </label>
+      <div class="field-row">
+        <label>
+          Date
+          <input type="date" id="fieldDate" required>
+        </label>
+        <label>
+          Membre
+          <select id="fieldMember"></select>
+        </label>
+      </div>
+      <div class="field-row">
+        <label>
+          Heure de début (optionnel)
+          <input type="time" id="fieldStartTime">
+        </label>
+        <label>
+          Heure de fin (optionnel)
+          <input type="time" id="fieldEndTime">
+        </label>
+      </div>
+      <label>
+        Description (optionnel)
+        <textarea id="fieldDescription" rows="3" maxlength="2000"></textarea>
+      </label>
+      <p id="formError" class="form-error hidden"></p>
+      <div class="modal-actions">
+        <button type="button" id="deleteEventBtn" class="danger-btn hidden">Supprimer</button>
+        <div class="modal-actions-right">
+          <button type="button" id="cancelModalBtn" class="secondary-btn">Annuler</button>
+          <button type="submit" class="primary-btn">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

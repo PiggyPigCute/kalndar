@@ -1,0 +1,333 @@
+const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const MONTH_LABELS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
+const IDENTITY_KEY = 'kalndar_identity';
+
+let members = [];
+let events = [];
+let currentDate = new Date();
+let editingEventId = null;
+
+const identityScreen = document.getElementById('identityScreen');
+const appScreen = document.getElementById('appScreen');
+const identityList = document.getElementById('identityList');
+const currentIdentityEl = document.getElementById('currentIdentity');
+const switchIdentityBtn = document.getElementById('switchIdentityBtn');
+
+const monthLabel = document.getElementById('monthLabel');
+const weekdaysRow = document.getElementById('weekdaysRow');
+const calendarGrid = document.getElementById('calendarGrid');
+const prevMonthBtn = document.getElementById('prevMonthBtn');
+const nextMonthBtn = document.getElementById('nextMonthBtn');
+const todayBtn = document.getElementById('todayBtn');
+const newEventBtn = document.getElementById('newEventBtn');
+
+const modalOverlay = document.getElementById('eventModalOverlay');
+const modalTitle = document.getElementById('modalTitle');
+const eventForm = document.getElementById('eventForm');
+const fieldTitle = document.getElementById('fieldTitle');
+const fieldDate = document.getElementById('fieldDate');
+const fieldMember = document.getElementById('fieldMember');
+const fieldStartTime = document.getElementById('fieldStartTime');
+const fieldEndTime = document.getElementById('fieldEndTime');
+const fieldDescription = document.getElementById('fieldDescription');
+const formError = document.getElementById('formError');
+const deleteEventBtn = document.getElementById('deleteEventBtn');
+const cancelModalBtn = document.getElementById('cancelModalBtn');
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function formatDate(year, month, day) { return `${year}-${pad(month + 1)}-${pad(day)}`; }
+function todayString() {
+  const now = new Date();
+  return formatDate(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function memberById(id) { return members.find(m => m.id === id); }
+
+async function fetchJSON(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Erreur ${res.status}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function loadMembers() {
+  members = await fetchJSON('/api/members');
+}
+
+async function loadEvents() {
+  events = await fetchJSON('/api/events');
+}
+
+// --- Identity screen ---
+
+function getSavedIdentity() {
+  const id = localStorage.getItem(IDENTITY_KEY);
+  return memberById(id) ? id : null;
+}
+
+function renderIdentityScreen() {
+  identityList.innerHTML = '';
+  members.forEach(member => {
+    const btn = document.createElement('button');
+    btn.className = 'identity-option';
+    btn.innerHTML = `<span class="identity-dot" style="background:${member.color}"></span> ${member.name}`;
+    btn.addEventListener('click', () => {
+      localStorage.setItem(IDENTITY_KEY, member.id);
+      showApp();
+    });
+    identityList.appendChild(btn);
+  });
+}
+
+function showIdentityScreen() {
+  identityScreen.classList.remove('hidden');
+  appScreen.classList.add('hidden');
+}
+
+function showApp() {
+  const identityId = getSavedIdentity();
+  const member = memberById(identityId);
+  currentIdentityEl.textContent = member.name;
+  currentIdentityEl.style.setProperty('--pill-color', member.color);
+  identityScreen.classList.add('hidden');
+  appScreen.classList.remove('hidden');
+  renderCalendar();
+}
+
+switchIdentityBtn.addEventListener('click', () => {
+  showIdentityScreen();
+});
+
+// --- Calendar rendering ---
+
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  monthLabel.textContent = `${MONTH_LABELS[month]} ${year}`;
+
+  weekdaysRow.innerHTML = '';
+  WEEKDAY_LABELS.forEach(label => {
+    const div = document.createElement('div');
+    div.textContent = label;
+    weekdaysRow.appendChild(div);
+  });
+
+  const firstOfMonth = new Date(year, month, 1);
+  // Monday = 0 ... Sunday = 6
+  const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const cells = [];
+
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    const day = daysInPrevMonth - i;
+    const m = month === 0 ? 11 : month - 1;
+    const y = month === 0 ? year - 1 : year;
+    cells.push({ day, date: formatDate(y, m, day), outside: true });
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push({ day, date: formatDate(year, month, day), outside: false });
+  }
+
+  while (cells.length % 7 !== 0) {
+    const day = cells.length - (firstWeekday + daysInMonth) + 1;
+    const m = month === 11 ? 0 : month + 1;
+    const y = month === 11 ? year + 1 : year;
+    cells.push({ day, date: formatDate(y, m, day), outside: true });
+  }
+
+  const today = todayString();
+  const eventsByDate = new Map();
+  events.forEach(ev => {
+    if (!eventsByDate.has(ev.date)) eventsByDate.set(ev.date, []);
+    eventsByDate.get(ev.date).push(ev);
+  });
+  eventsByDate.forEach(list => {
+    list.sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99'));
+  });
+
+  calendarGrid.innerHTML = '';
+  const MAX_VISIBLE = 3;
+
+  cells.forEach(cell => {
+    const cellEl = document.createElement('div');
+    cellEl.className = 'day-cell' + (cell.outside ? ' outside' : '') + (cell.date === today ? ' today' : '');
+
+    const numberEl = document.createElement('div');
+    numberEl.className = 'day-number';
+    numberEl.textContent = cell.day;
+    cellEl.appendChild(numberEl);
+
+    const dayEvents = eventsByDate.get(cell.date) || [];
+    dayEvents.slice(0, MAX_VISIBLE).forEach(ev => {
+      const member = memberById(ev.memberId);
+      const pill = document.createElement('div');
+      pill.className = 'event-pill';
+      pill.style.background = member ? member.color : '#999';
+      pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
+      pill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditModal(ev);
+      });
+      cellEl.appendChild(pill);
+    });
+
+    if (dayEvents.length > MAX_VISIBLE) {
+      const more = document.createElement('div');
+      more.className = 'event-more';
+      more.textContent = `+${dayEvents.length - MAX_VISIBLE} autre(s)`;
+      cellEl.appendChild(more);
+    }
+
+    cellEl.addEventListener('click', () => openNewModal(cell.date));
+    calendarGrid.appendChild(cellEl);
+  });
+}
+
+prevMonthBtn.addEventListener('click', () => {
+  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+  renderCalendar();
+});
+
+nextMonthBtn.addEventListener('click', () => {
+  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+  renderCalendar();
+});
+
+todayBtn.addEventListener('click', () => {
+  currentDate = new Date();
+  renderCalendar();
+});
+
+// --- Event modal ---
+
+function populateMemberSelect() {
+  fieldMember.innerHTML = '';
+  members.forEach(member => {
+    const option = document.createElement('option');
+    option.value = member.id;
+    option.textContent = member.name;
+    fieldMember.appendChild(option);
+  });
+}
+
+function openNewModal(date) {
+  editingEventId = null;
+  modalTitle.textContent = 'Nouvel événement';
+  eventForm.reset();
+  populateMemberSelect();
+  fieldDate.value = date;
+  const savedIdentity = getSavedIdentity();
+  if (savedIdentity) fieldMember.value = savedIdentity;
+  formError.classList.add('hidden');
+  deleteEventBtn.classList.add('hidden');
+  modalOverlay.classList.remove('hidden');
+  fieldTitle.focus();
+}
+
+function openEditModal(ev) {
+  editingEventId = ev.id;
+  modalTitle.textContent = 'Modifier l\'événement';
+  populateMemberSelect();
+  fieldTitle.value = ev.title;
+  fieldDate.value = ev.date;
+  fieldMember.value = ev.memberId;
+  fieldStartTime.value = ev.startTime || '';
+  fieldEndTime.value = ev.endTime || '';
+  fieldDescription.value = ev.description || '';
+  formError.classList.add('hidden');
+  deleteEventBtn.classList.remove('hidden');
+  modalOverlay.classList.remove('hidden');
+  fieldTitle.focus();
+}
+
+function closeModal() {
+  modalOverlay.classList.add('hidden');
+  editingEventId = null;
+}
+
+cancelModalBtn.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+newEventBtn.addEventListener('click', () => openNewModal(todayString()));
+
+eventForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formError.classList.add('hidden');
+
+  const payload = {
+    title: fieldTitle.value,
+    date: fieldDate.value,
+    memberId: fieldMember.value,
+    startTime: fieldStartTime.value || null,
+    endTime: fieldEndTime.value || null,
+    description: fieldDescription.value,
+  };
+
+  try {
+    if (editingEventId) {
+      await fetchJSON(`/api/events/${editingEventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetchJSON('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+    closeModal();
+    await loadEvents();
+    renderCalendar();
+  } catch (err) {
+    formError.textContent = err.message;
+    formError.classList.remove('hidden');
+  }
+});
+
+deleteEventBtn.addEventListener('click', async () => {
+  if (!editingEventId) return;
+  if (!confirm('Supprimer cet événement ?')) return;
+  try {
+    await fetchJSON(`/api/events/${editingEventId}`, { method: 'DELETE' });
+    closeModal();
+    await loadEvents();
+    renderCalendar();
+  } catch (err) {
+    formError.textContent = err.message;
+    formError.classList.remove('hidden');
+  }
+});
+
+// --- Realtime sync ---
+
+const socket = io();
+socket.on('events:changed', async () => {
+  await loadEvents();
+  if (!appScreen.classList.contains('hidden')) renderCalendar();
+});
+
+// --- Boot ---
+
+(async function init() {
+  await loadMembers();
+  await loadEvents();
+  if (getSavedIdentity()) {
+    showApp();
+  } else {
+    renderIdentityScreen();
+    showIdentityScreen();
+  }
+})();
