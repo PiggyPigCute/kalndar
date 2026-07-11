@@ -92,6 +92,44 @@ body {
   flex-shrink: 0;
 }
 
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+  text-align: left;
+}
+
+.login-form p#loginAs {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.login-form input {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.login-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 /* App screen */
 #appScreen {
   max-width: 1100px;

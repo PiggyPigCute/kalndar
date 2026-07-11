@@ -3,16 +3,21 @@ const MONTH_LABELS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
-const IDENTITY_KEY = 'kalndar_identity';
-
 let members = [];
 let events = [];
+let currentMember = null;
+let loginMemberId = null;
 let currentDate = new Date();
 let editingEventId = null;
 
 const identityScreen = document.getElementById('identityScreen');
 const appScreen = document.getElementById('appScreen');
 const identityList = document.getElementById('identityList');
+const loginForm = document.getElementById('loginForm');
+const loginAs = document.getElementById('loginAs');
+const loginPassword = document.getElementById('loginPassword');
+const loginError = document.getElementById('loginError');
+const loginBackBtn = document.getElementById('loginBackBtn');
 const currentIdentityEl = document.getElementById('currentIdentity');
 const switchIdentityBtn = document.getElementById('switchIdentityBtn');
 
@@ -50,7 +55,9 @@ async function fetchJSON(url, options) {
   const res = await fetch(url, options);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Erreur ${res.status}`);
+    const err = new Error(body.error || `Erreur ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -64,12 +71,7 @@ async function loadEvents() {
   events = await fetchJSON('/api/events');
 }
 
-// --- Identity screen ---
-
-function getSavedIdentity() {
-  const id = localStorage.getItem(IDENTITY_KEY);
-  return memberById(id) ? id : null;
-}
+// --- Identity / login screen ---
 
 function renderIdentityScreen() {
   identityList.innerHTML = '';
@@ -77,30 +79,68 @@ function renderIdentityScreen() {
     const btn = document.createElement('button');
     btn.className = 'identity-option';
     btn.innerHTML = `<span class="identity-dot" style="background:${member.color}"></span> ${member.name}`;
-    btn.addEventListener('click', () => {
-      localStorage.setItem(IDENTITY_KEY, member.id);
-      showApp();
-    });
+    btn.addEventListener('click', () => openLoginForm(member));
     identityList.appendChild(btn);
   });
 }
 
+function openLoginForm(member) {
+  loginMemberId = member.id;
+  loginAs.textContent = `Mot de passe pour ${member.name}`;
+  loginPassword.value = '';
+  loginError.classList.add('hidden');
+  identityList.classList.add('hidden');
+  loginForm.classList.remove('hidden');
+  loginPassword.focus();
+}
+
+function closeLoginForm() {
+  loginMemberId = null;
+  loginForm.classList.add('hidden');
+  identityList.classList.remove('hidden');
+}
+
+loginBackBtn.addEventListener('click', closeLoginForm);
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.classList.add('hidden');
+  try {
+    const member = await fetchJSON('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: loginMemberId, password: loginPassword.value }),
+    });
+    loginForm.classList.add('hidden');
+    identityList.classList.remove('hidden');
+    await showApp(member);
+  } catch (err) {
+    loginError.textContent = err.message;
+    loginError.classList.remove('hidden');
+    loginPassword.value = '';
+    loginPassword.focus();
+  }
+});
+
 function showIdentityScreen() {
+  currentMember = null;
+  closeLoginForm();
   identityScreen.classList.remove('hidden');
   appScreen.classList.add('hidden');
 }
 
-function showApp() {
-  const identityId = getSavedIdentity();
-  const member = memberById(identityId);
+async function showApp(member) {
+  currentMember = member;
   currentIdentityEl.textContent = member.name;
   currentIdentityEl.style.setProperty('--pill-color', member.color);
   identityScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
+  await loadEvents();
   renderCalendar();
 }
 
-switchIdentityBtn.addEventListener('click', () => {
+switchIdentityBtn.addEventListener('click', async () => {
+  await fetchJSON('/api/logout', { method: 'POST' });
   showIdentityScreen();
 });
 
@@ -226,8 +266,7 @@ function openNewModal(date) {
   eventForm.reset();
   populateMemberSelect();
   fieldDate.value = date;
-  const savedIdentity = getSavedIdentity();
-  if (savedIdentity) fieldMember.value = savedIdentity;
+  if (currentMember) fieldMember.value = currentMember.id;
   formError.classList.add('hidden');
   deleteEventBtn.classList.add('hidden');
   modalOverlay.classList.remove('hidden');
@@ -292,6 +331,12 @@ eventForm.addEventListener('submit', async (e) => {
     await loadEvents();
     renderCalendar();
   } catch (err) {
+    if (err.status === 401) {
+      closeModal();
+      renderIdentityScreen();
+      showIdentityScreen();
+      return;
+    }
     formError.textContent = err.message;
     formError.classList.remove('hidden');
   }
@@ -306,6 +351,12 @@ deleteEventBtn.addEventListener('click', async () => {
     await loadEvents();
     renderCalendar();
   } catch (err) {
+    if (err.status === 401) {
+      closeModal();
+      renderIdentityScreen();
+      showIdentityScreen();
+      return;
+    }
     formError.textContent = err.message;
     formError.classList.remove('hidden');
   }
@@ -315,19 +366,27 @@ deleteEventBtn.addEventListener('click', async () => {
 
 const socket = io();
 socket.on('events:changed', async () => {
-  await loadEvents();
-  if (!appScreen.classList.contains('hidden')) renderCalendar();
+  if (appScreen.classList.contains('hidden')) return;
+  try {
+    await loadEvents();
+    renderCalendar();
+  } catch (err) {
+    if (err.status === 401) {
+      renderIdentityScreen();
+      showIdentityScreen();
+    }
+  }
 });
 
 // --- Boot ---
 
 (async function init() {
   await loadMembers();
-  await loadEvents();
-  if (getSavedIdentity()) {
-    showApp();
-  } else {
-    renderIdentityScreen();
+  renderIdentityScreen();
+  try {
+    const member = await fetchJSON('/api/me');
+    await showApp(member);
+  } catch (err) {
     showIdentityScreen();
   }
 })();

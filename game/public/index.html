@@ -10,8 +10,21 @@
 
 <div id="identityScreen" class="screen hidden">
   <div class="identity-card">
-    <h1>Qui es-tu ?</h1>
+    <h1 id="identityHeading">Qui es-tu ?</h1>
     <div id="identityList" class="identity-list"></div>
+
+    <form id="loginForm" class="login-form hidden">
+      <p id="loginAs"></p>
+      <label>
+        Mot de passe
+        <input type="password" id="loginPassword" required>
+      </label>
+      <p id="loginError" class="form-error hidden"></p>
+      <div class="login-actions">
+        <button type="button" id="loginBackBtn" class="secondary-btn">‹ Retour</button>
+        <button type="submit" class="primary-btn">Entrer</button>
+      </div>
+    </form>
   </div>
 </div>
 
