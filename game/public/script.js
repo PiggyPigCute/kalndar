@@ -247,7 +247,7 @@ function renderCalendar() {
 
     const numberEl = document.createElement('div');
     numberEl.className = 'day-number';
-    numberEl.textContent = cell.day;
+    numberEl.textContent = cell.date === today ? `${cell.day} · Aujourd'hui` : cell.day;
     cellEl.appendChild(numberEl);
 
     const dayEvents = eventsByDate.get(cell.date) || [];
