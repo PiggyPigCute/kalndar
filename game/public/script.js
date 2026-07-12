@@ -19,7 +19,6 @@ const loginAs = document.getElementById('loginAs');
 const loginPassword = document.getElementById('loginPassword');
 const loginError = document.getElementById('loginError');
 const loginBackBtn = document.getElementById('loginBackBtn');
-const currentIdentityEl = document.getElementById('currentIdentity');
 const memberFilters = document.getElementById('memberFilters');
 
 // membres actuellement masqués de la grille du calendrier (le day-panel, lui, montre toujours tout)
@@ -212,8 +211,6 @@ function showIdentityScreen() {
 
 async function showApp(member) {
   currentMember = member;
-  currentIdentityEl.textContent = member.name;
-  currentIdentityEl.style.setProperty('--pill-color', member.color);
   identityScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
   renderMemberFilters();
