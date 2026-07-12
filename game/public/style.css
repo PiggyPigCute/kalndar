@@ -574,6 +574,12 @@ body {
   min-width: 0;
 }
 
+#fieldStartTime,
+#fieldEndTime {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .field-row {
   display: flex;
   gap: 12px;
