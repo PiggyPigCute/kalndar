@@ -278,7 +278,11 @@ function selectDate(date) {
 }
 
 function buildDayPanelItem(ev) {
-  const memberNames = (ev.memberIds || []).map(memberById).filter(Boolean).map(m => m.name).join(', ');
+  const memberNamesHtml = (ev.memberIds || [])
+    .map(memberById)
+    .filter(Boolean)
+    .map(m => `<span class="day-panel-item-member-name" style="color:${m.color}">${escapeHtml(m.name)}</span>`)
+    .join(', ');
   const timeHtml = ev.startTime ? `
     <div class="day-panel-item-time">
       <span class="day-panel-item-time-start">${escapeHtml(ev.startTime)}</span>
@@ -294,7 +298,7 @@ function buildDayPanelItem(ev) {
     ${timeHtml}
     <div class="day-panel-item-body">
       <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
-      <div class="day-panel-item-member">${escapeHtml(memberNames)}</div>
+      <div class="day-panel-item-member">${memberNamesHtml}</div>
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
     </div>
   `;
