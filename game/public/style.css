@@ -278,7 +278,12 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
+  transition: transform 0.18s ease, opacity 0.18s ease;
 }
+
+.calendar-grid.no-transition { transition: none; }
+.calendar-grid.slide-left { transform: translateX(-16px); opacity: 0; }
+.calendar-grid.slide-right { transform: translateX(16px); opacity: 0; }
 
 .day-cell {
   background: var(--surface);

@@ -522,15 +522,29 @@ function renderDayPanel() {
 
 dayPanelAddBtn.addEventListener('click', () => openNewModal(selectedDate));
 
-prevMonthBtn.addEventListener('click', () => {
-  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-  renderCalendar();
-});
+// change de mois avec un glissement : l'ancienne grille sort du côté `direction`,
+// puis la nouvelle entre depuis le côté opposé (mêmes classes pour sortir vers un
+// côté et arriver de ce côté, seul l'ordre d'application diffère)
+const SLIDE_DURATION = 180;
 
-nextMonthBtn.addEventListener('click', () => {
-  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-  renderCalendar();
-});
+function navigateMonth(direction) {
+  const exitClass = direction > 0 ? 'slide-left' : 'slide-right';
+  const enterClass = direction > 0 ? 'slide-right' : 'slide-left';
+
+  calendarGrid.classList.add(exitClass);
+  setTimeout(() => {
+    currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1);
+    renderCalendar();
+
+    calendarGrid.classList.remove(exitClass);
+    calendarGrid.classList.add('no-transition', enterClass);
+    void calendarGrid.offsetWidth; // fige cette position de départ avant de la relâcher, sinon pas d'animation
+    calendarGrid.classList.remove('no-transition', enterClass);
+  }, SLIDE_DURATION);
+}
+
+prevMonthBtn.addEventListener('click', () => navigateMonth(-1));
+nextMonthBtn.addEventListener('click', () => navigateMonth(1));
 
 todayBtn.addEventListener('click', () => {
   currentDate = new Date();
