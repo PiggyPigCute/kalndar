@@ -112,6 +112,12 @@ function memberAccent(memberIds) {
   return `linear-gradient(135deg, ${stops.join(', ')})`;
 }
 
+// pour calendar-main uniquement : un membre désaffiché disparaît aussi du dégradé
+// d'un événement partagé qui reste visible grâce à un autre membre encore coché
+function visibleMemberIds(memberIds) {
+  return (memberIds || []).filter(id => !hiddenMemberIds.has(id));
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -363,7 +369,7 @@ function renderCalendar() {
           bar.className = 'event-bar';
           if (col > placement.colStart) bar.classList.add('continues-before');
           if (col < placement.colEnd) bar.classList.add('continues-after');
-          bar.style.background = memberAccent(placement.ev.memberIds);
+          bar.style.background = memberAccent(visibleMemberIds(placement.ev.memberIds));
           if (col === placement.colStart) bar.textContent = placement.ev.title;
           barsWrap.appendChild(bar);
         }
@@ -374,7 +380,7 @@ function renderCalendar() {
       dayEvents.slice(0, MAX_VISIBLE).forEach(ev => {
         const pill = document.createElement('div');
         pill.className = 'event-pill';
-        pill.style.background = memberAccent(ev.memberIds);
+        pill.style.background = memberAccent(visibleMemberIds(ev.memberIds));
         pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
         cellEl.appendChild(pill);
       });
