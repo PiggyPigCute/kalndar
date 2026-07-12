@@ -1130,6 +1130,23 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service worker :', err));
 }
 
+// debug : à taper dans la console du navigateur (F12) pour envoyer une notif de
+// test tout de suite, sans dépendre d'un événement — affiche aussi l'état local
+// (permission, service worker, abonnement) pour repérer où ça coince
+window.testPush = async function testPush() {
+  console.log('Notification.permission :', typeof Notification !== 'undefined' ? Notification.permission : 'API absente');
+  const registration = await getServiceWorkerRegistration();
+  console.log('Service worker prêt :', !!registration);
+  const subscription = registration && await registration.pushManager.getSubscription();
+  console.log('Abonnement push local :', subscription);
+  if (!subscription) {
+    console.warn('Pas d\'abonnement : coche "Notifier" sur un événement pour en créer un.');
+    return;
+  }
+  const result = await fetchJSON('/api/push/test', { method: 'POST' });
+  console.log('Réponse du serveur :', result);
+};
+
 // --- Boot ---
 
 (async function init() {

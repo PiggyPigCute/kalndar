@@ -332,14 +332,21 @@ function eventStartDate(ev) {
   return new Date(y, m - 1, d, h, min);
 }
 
+// renvoie un résumé (utile pour le debug : combien d'abonnements trouvés, envoyés, en échec)
 async function sendPushToMembers(memberIds, payload) {
   const body = JSON.stringify(payload);
+  const result = { subscriptions: 0, sent: 0, failed: 0 };
+
   for (const memberId of memberIds) {
     const subs = pushSubscriptions[memberId] || [];
+    result.subscriptions += subs.length;
     for (const sub of subs) {
       try {
         await webpush.sendNotification(sub, body);
+        result.sent++;
       } catch (err) {
+        result.failed++;
+        console.error(`Push échoué pour ${memberId} (${err.statusCode || '?'}) :`, err.body || err.message);
         if (err.statusCode === 404 || err.statusCode === 410) {
           pushSubscriptions[memberId] = (pushSubscriptions[memberId] || []).filter(s => s.endpoint !== sub.endpoint);
           savePushSubscriptions();
@@ -347,7 +354,21 @@ async function sendPushToMembers(memberIds, payload) {
       }
     }
   }
+
+  return result;
 }
+
+// debug : envoie tout de suite une notif de test au membre connecté, sans passer
+// par la logique de date/heure des événements — utile pour isoler le problème
+app.post('/api/push/test', requireAuth, async (req, res) => {
+  const result = await sendPushToMembers([req.memberId], {
+    title: 'Test Kalndar',
+    body: `Notification de test pour ${memberById(req.memberId).name}`,
+    url: '/',
+  });
+  console.log('Push test :', result);
+  res.json(result);
+});
 
 function checkUpcomingEvents() {
   const now = new Date();
