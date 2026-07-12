@@ -530,7 +530,7 @@ body {
 }
 
 .member-checkbox:hover {
-  background: var(--member-color, var(--accent));
+  background: var(--surface);
 }
 
 .member-checkbox:has(input:checked) {
