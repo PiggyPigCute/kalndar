@@ -690,10 +690,16 @@ function attachDatePicker(nativeInput) {
   display.inputMode = 'numeric';
   display.maxLength = 10;
 
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'picker-toggle';
+  toggleBtn.setAttribute('aria-label', 'Choisir une date');
+  toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>';
+
   const popup = document.createElement('div');
   popup.className = 'picker-popup hidden';
 
-  wrap.append(display, popup);
+  wrap.append(display, toggleBtn, popup);
   nativeInput.insertAdjacentElement('afterend', wrap);
   wrap.appendChild(nativeInput); // pour que le champ visible soit le premier descendant "labelable" du <label>
 
@@ -843,15 +849,31 @@ function attachDatePicker(nativeInput) {
     selectSegment(0);
   }
 
+  // le focus/clic sur le champ prépare juste la saisie (segment jour sélectionné) ;
+  // la popup, elle, ne s'ouvre que via le bouton calendrier (voir plus bas)
   display.addEventListener('focus', () => {
     closeAllPickerPopups();
     startEditing();
+  });
+
+  function openPopup() {
+    closeAllPickerPopups();
     const base = nativeInput.value ? nativeInput.value.split('-').map(Number) : null;
     const now = new Date();
     viewYear = base ? base[0] : now.getFullYear();
     viewMonth = base ? base[1] - 1 : now.getMonth();
     renderPopup();
     popup.classList.remove('hidden');
+  }
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!popup.classList.contains('hidden')) {
+      popup.classList.add('hidden');
+      return;
+    }
+    display.focus();
+    openPopup();
   });
 
   // clic alors que le champ a déjà le focus : 'focus' ne se redéclenche pas,
