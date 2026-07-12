@@ -20,17 +20,6 @@ const sessionSecretPath = path.join(__dirname, 'data', 'session-secret');
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
 const validMemberIds = new Set(members.map(m => m.id));
 
-// anciens événements enregistrés avec un seul "memberId" : on les ramène au format memberIds[]
-// anciens événements sans "endDate" : un événement d'un seul jour se termine le jour même
-function migrateEvent(event) {
-  const { memberId, ...rest } = event;
-  return {
-    ...rest,
-    memberIds: Array.isArray(event.memberIds) ? event.memberIds : (memberId ? [memberId] : []),
-    endDate: event.endDate || event.date,
-  };
-}
-
 function loadEvents() {
   try {
     const raw = JSON.parse(fs.readFileSync(eventsPath, 'utf8'));
