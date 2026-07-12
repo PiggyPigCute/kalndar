@@ -214,14 +214,6 @@ body {
   color: var(--text);
 }
 
-.notify-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.notify-toggle-btn.enabled { color: var(--accent); border-color: var(--accent); }
 
 .today-btn, .secondary-btn {
   background: var(--surface);
@@ -605,6 +597,26 @@ body {
 .field-row {
   display: flex;
   gap: 12px;
+}
+
+.title-field {
+  flex: 1;
+}
+
+.notify-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-end;
+  padding-bottom: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.notify-field input {
+  margin: 0;
 }
 
 .member-checkboxes {

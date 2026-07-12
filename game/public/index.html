@@ -37,12 +37,6 @@
       <h1>kal'n'dar</h1>
     </div>
     <div class="topbar-right">
-      <button id="notifyToggleBtn" class="icon-btn notify-toggle-btn" aria-label="Activer les notifications" title="Notifications">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
-      </button>
       <div id="memberFilters" class="member-checkboxes"></div>
     </div>
   </header>
@@ -76,10 +70,16 @@
   <div class="modal">
     <h2 id="modalTitle">Nouvel événement</h2>
     <form id="eventForm">
-      <label>
-        Titre
-        <input type="text" id="fieldTitle" required maxlength="200" placeholder="Nom de l'événement" autocomplete="off">
-      </label>
+      <div class="field-row">
+        <label class="title-field">
+          Titre
+          <input type="text" id="fieldTitle" required maxlength="200" placeholder="Nom de l'événement" autocomplete="off">
+        </label>
+        <label class="notify-field">
+          <input type="checkbox" id="fieldNotify" checked>
+          <span>🔔 Notifier</span>
+        </label>
+      </div>
       <label>
         Membres concernés
         <div id="fieldMembers" class="member-checkboxes"></div>
