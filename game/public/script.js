@@ -20,7 +20,10 @@ const loginPassword = document.getElementById('loginPassword');
 const loginError = document.getElementById('loginError');
 const loginBackBtn = document.getElementById('loginBackBtn');
 const currentIdentityEl = document.getElementById('currentIdentity');
-const switchIdentityBtn = document.getElementById('switchIdentityBtn');
+const memberFilters = document.getElementById('memberFilters');
+
+// membres actuellement masqués de la grille du calendrier (le day-panel, lui, montre toujours tout)
+const hiddenMemberIds = new Set();
 
 const monthLabel = document.getElementById('monthLabel');
 const weekdaysRow = document.getElementById('weekdaysRow');
@@ -213,15 +216,32 @@ async function showApp(member) {
   currentIdentityEl.style.setProperty('--pill-color', member.color);
   identityScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
+  renderMemberFilters();
   await loadEvents();
   renderCalendar();
   renderDayPanel();
 }
 
-switchIdentityBtn.addEventListener('click', async () => {
-  await fetchJSON('/api/logout', { method: 'POST' });
-  showIdentityScreen();
-});
+// filtre d'affichage : coché = visible dans la grille du calendrier (tout le monde par défaut) ;
+// désaffiché n'affecte que calendar-main, le day-panel continue de tout montrer
+function renderMemberFilters() {
+  memberFilters.innerHTML = '';
+  members.forEach(member => {
+    const label = document.createElement('label');
+    label.className = 'member-checkbox';
+    label.style.setProperty('--member-color', member.color);
+    label.innerHTML = `
+      <input type="checkbox" value="${member.id}" ${hiddenMemberIds.has(member.id) ? '' : 'checked'}>
+      ${escapeHtml(member.name)}
+    `;
+    label.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) hiddenMemberIds.delete(member.id);
+      else hiddenMemberIds.add(member.id);
+      renderCalendar();
+    });
+    memberFilters.appendChild(label);
+  });
+}
 
 // --- Calendar rendering ---
 
@@ -266,9 +286,13 @@ function renderCalendar() {
 
   const today = todayString();
 
+  // un événement reste visible dans la grille tant qu'au moins un de ses membres
+  // n'est pas masqué (le day-panel, lui, ignore totalement ce filtre)
+  const visibleEvents = events.filter(ev => (ev.memberIds || []).some(id => !hiddenMemberIds.has(id)));
+
   // événements d'un seul jour : regroupés par date, pour les pastilles habituelles
   const singleDayEventsByDate = new Map();
-  events.forEach(ev => {
+  visibleEvents.forEach(ev => {
     if (ev.endDate !== ev.date) return;
     if (!singleDayEventsByDate.has(ev.date)) singleDayEventsByDate.set(ev.date, []);
     singleDayEventsByDate.get(ev.date).push(ev);
@@ -278,7 +302,7 @@ function renderCalendar() {
   });
 
   // événements sur plusieurs jours : traités par ligne de semaine (voir plus bas)
-  const multiDayEvents = events
+  const multiDayEvents = visibleEvents
     .filter(ev => ev.endDate !== ev.date)
     .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 
