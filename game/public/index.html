@@ -71,7 +71,11 @@
     <form id="eventForm">
       <label>
         Titre
-        <input type="text" id="fieldTitle" required maxlength="200" placeholder="Nom de l'événement">
+        <input type="text" id="fieldTitle" required maxlength="200">
+      </label>
+      <label>
+        Membres concernés
+        <div id="fieldMembers" class="member-checkboxes"></div>
       </label>
       <div class="field-row">
         <label>
@@ -83,10 +87,6 @@
           <input type="date" id="fieldEndDate">
         </label>
       </div>
-      <label>
-        Membres concernés
-        <div id="fieldMembers" class="member-checkboxes"></div>
-      </label>
       <div class="field-row">
         <label>
           Heure de début (optionnel)

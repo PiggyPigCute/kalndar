@@ -685,8 +685,43 @@ function attachDatePicker(nativeInput) {
 
   let viewYear, viewMonth;
 
+  // saisie segmentée jour/mois/année façon <input type="date"> natif : cliquer
+  // sélectionne le jour, taper 2 chiffres avance sur le mois puis sur l'année
+  const SEGMENTS = [
+    { name: 'day', len: 2, start: 0, end: 2, mask: 'jj' },
+    { name: 'month', len: 2, start: 3, end: 5, mask: 'mm' },
+    { name: 'year', len: 4, start: 6, end: 10, mask: 'aaaa' },
+  ];
+  let segIndex = 0;
+  let parts = { day: '', month: '', year: '' };
+
+  function resetPartsFromValue() {
+    if (nativeInput.value) {
+      const [y, m, d] = nativeInput.value.split('-');
+      parts = { day: d, month: m, year: y };
+    } else {
+      parts = { day: '', month: '', year: '' };
+    }
+  }
+
+  function renderDisplay() {
+    display.value = SEGMENTS.map(seg => (parts[seg.name] + seg.mask).slice(0, seg.len)).join('/');
+  }
+
+  function selectSegment(i) {
+    segIndex = i;
+    display.setSelectionRange(SEGMENTS[i].start, SEGMENTS[i].end);
+  }
+
   function syncDisplay() {
     display.value = formatDateEU(nativeInput.value);
+  }
+
+  function commitIfComplete() {
+    if (parts.day.length === 2 && parts.month.length === 2 && parts.year.length === 4) {
+      const iso = parseDateEU(`${parts.day}/${parts.month}/${parts.year}`);
+      if (iso) setValue(iso);
+    }
   }
 
   function setValue(iso) {
@@ -785,21 +820,72 @@ function attachDatePicker(nativeInput) {
     popup.classList.remove('hidden');
   });
 
-  display.addEventListener('input', () => {
-    const digits = display.value.replace(/\D/g, '').slice(0, 8);
-    let formatted = digits;
-    if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-    else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
-    display.value = formatted;
+  // clic (ou re-clic alors que le champ a déjà le focus) : repart toujours du
+  // jour, comme demandé, plutôt que de laisser le navigateur placer le curseur
+  display.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    display.focus();
+    resetPartsFromValue();
+    renderDisplay();
+    selectSegment(0);
+  });
 
-    const iso = parseDateEU(formatted);
-    if (iso) setValue(iso);
+  display.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text');
+    const digits = text.replace(/\D/g, '').slice(0, 8);
+    parts.day = digits.slice(0, 2);
+    parts.month = digits.slice(2, 4);
+    parts.year = digits.slice(4, 8);
+    renderDisplay();
+    segIndex = parts.year ? 2 : parts.month ? 1 : 0;
+    selectSegment(segIndex);
+    commitIfComplete();
+  });
+
+  display.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.key === 'Tab') return;
+
+    if (e.key === 'Escape') { popup.classList.add('hidden'); return; }
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      selectSegment(Math.max(0, segIndex - 1));
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === '/') {
+      e.preventDefault();
+      selectSegment(Math.min(SEGMENTS.length - 1, segIndex + 1));
+      return;
+    }
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const seg = SEGMENTS[segIndex];
+      if (parts[seg.name].length > 0) {
+        parts[seg.name] = parts[seg.name].slice(0, -1);
+      } else if (segIndex > 0) {
+        segIndex--;
+        parts[SEGMENTS[segIndex].name] = parts[SEGMENTS[segIndex].name].slice(0, -1);
+      }
+      renderDisplay();
+      selectSegment(segIndex);
+      return;
+    }
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      const seg = SEGMENTS[segIndex];
+      parts[seg.name] = (parts[seg.name] + e.key).slice(-seg.len);
+      renderDisplay();
+      if (parts[seg.name].length >= seg.len && segIndex < SEGMENTS.length - 1) segIndex++;
+      selectSegment(segIndex);
+      commitIfComplete();
+      return;
+    }
+
+    e.preventDefault();
   });
 
   display.addEventListener('blur', syncDisplay);
-  display.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') popup.classList.add('hidden');
-  });
 
   syncDisplay();
   return syncDisplay;
