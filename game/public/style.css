@@ -796,4 +796,15 @@ body {
   .day-cell { min-height: 76px; }
   .toolbar { justify-content: center; }
   .month-label { order: -1; width: 100%; }
+
+  .topbar h1 { display: none; }
+  .nav-group { display: none; }
+
+  .member-checkbox { padding-left: 6px; padding-right: 6px; }
+
+  /* .calendar-main va bord à bord (annule le padding horizontal de #appScreen),
+     et la grille perd sa bordure/son arrondi latéral pour que chaque case
+     fasse exactement 1/7 de la largeur de l'écran */
+  .calendar-main { margin: 0 -20px; }
+  .calendar-grid { border-left: none; border-right: none; border-radius: 0; }
 }

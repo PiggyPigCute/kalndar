@@ -531,6 +531,29 @@ todayBtn.addEventListener('click', () => {
   selectDate(todayString());
 });
 
+// navigation par swipe (mobile) : .nav-group est masqué en dessous de 640px,
+// swipe vers la droite = mois précédent, vers la gauche = mois suivant
+const SWIPE_THRESHOLD = 50;
+let touchStartX = null;
+let touchStartY = null;
+
+calendarGrid.addEventListener('touchstart', (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+calendarGrid.addEventListener('touchend', (e) => {
+  if (touchStartX === null) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  touchStartX = null;
+  touchStartY = null;
+
+  if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+  if (dx > 0) prevMonthBtn.click();
+  else nextMonthBtn.click();
+}, { passive: true });
+
 // --- Event modal ---
 
 function renderMemberCheckboxes(checkedIds) {
