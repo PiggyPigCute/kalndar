@@ -529,10 +529,12 @@ body {
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
+.member-checkbox:hover {
+  background: var(--member-color, var(--accent));
+}
+
 .member-checkbox:has(input:checked) {
   border-color: var(--member-color, var(--accent));
-  background: var(--member-color, var(--accent));
-  color: var(--surface);
   font-weight: 600;
 }
 
