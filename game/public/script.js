@@ -271,11 +271,58 @@ function renderCalendar() {
   });
 }
 
+// sélectionne une date ; bascule automatiquement le mois affiché si cette date
+// (clic sur un jour "outside", flèches...) n'appartient pas au mois actuellement montré
 function selectDate(date) {
+  const [y, m] = date.split('-').map(Number);
+  if (y !== currentDate.getFullYear() || m - 1 !== currentDate.getMonth()) {
+    currentDate = new Date(y, m - 1, 1);
+  }
   selectedDate = date;
   renderCalendar();
   renderDayPanel();
 }
+
+function addDays(dateStr, delta) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + delta);
+  return formatDate(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function moveSelection(delta) {
+  selectDate(addDays(selectedDate, delta));
+}
+
+document.addEventListener('keydown', (e) => {
+  if (appScreen.classList.contains('hidden')) return;
+  if (!modalOverlay.classList.contains('hidden')) return;
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  switch (e.key) {
+    case '+':
+      e.preventDefault();
+      dayPanelAddBtn.click();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      moveSelection(-1);
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      moveSelection(1);
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      moveSelection(-7);
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      moveSelection(7);
+      break;
+  }
+});
 
 function buildDayPanelItem(ev) {
   const memberNamesHtml = (ev.memberIds || [])
