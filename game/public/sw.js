@@ -11,8 +11,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Kalndar', {
       body: data.body || '',
-      icon: '/icon.svg',
-      badge: '/badge.svg',
+      icon: '/icons/icon.svg',
+      badge: '/icons/badge.svg',
       data: { url: data.url || '/' },
     })
   );
