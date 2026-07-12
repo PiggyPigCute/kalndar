@@ -363,10 +363,10 @@ function renderMemberCheckboxes(checkedIds) {
   members.forEach(member => {
     const label = document.createElement('label');
     label.className = 'member-checkbox';
+    label.style.setProperty('--member-color', member.color);
     const checked = checkedIds.includes(member.id) ? 'checked' : '';
     label.innerHTML = `
       <input type="checkbox" value="${member.id}" ${checked}>
-      <span class="member-checkbox-dot" style="background:${member.color}"></span>
       ${escapeHtml(member.name)}
     `;
     fieldMembers.appendChild(label);
