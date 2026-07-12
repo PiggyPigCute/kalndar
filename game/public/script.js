@@ -54,8 +54,6 @@ function todayString() {
   return formatDate(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
-
 // jj/mm/aaaa (affichage) <-> aaaa-mm-jj (valeur native, utilisée partout ailleurs dans le code)
 function formatDateEU(iso) {
   if (!iso) return '';
@@ -906,109 +904,14 @@ function attachDatePicker(nativeInput) {
   return syncDisplay;
 }
 
-function attachTimePicker(nativeInput) {
-  nativeInput.style.display = 'none';
-  nativeInput.tabIndex = -1;
-
-  const wrap = document.createElement('div');
-  wrap.className = 'picker';
-
-  const display = document.createElement('input');
-  display.type = 'text';
-  display.className = 'picker-display';
-  display.placeholder = 'HH:mm';
-  display.inputMode = 'numeric';
-  display.maxLength = 5;
-
-  const popup = document.createElement('div');
-  popup.className = 'picker-popup time-popup hidden';
-
-  wrap.append(display, popup);
-  nativeInput.insertAdjacentElement('afterend', wrap);
-  wrap.appendChild(nativeInput); // pour que le champ visible soit le premier descendant "labelable" du <label>
-
-  function syncDisplay() {
-    display.value = nativeInput.value || '';
-  }
-
-  function currentParts() {
-    const [h, m] = (nativeInput.value || '').split(':');
-    return { h: h || null, m: m || null };
-  }
-
-  function setValue(value) {
-    nativeInput.value = value;
-    nativeInput.dispatchEvent(new Event('change', { bubbles: true }));
-    syncDisplay();
-    renderPopup();
-  }
-
-  function renderPopup() {
-    popup.innerHTML = '';
-    const { h, m } = currentParts();
-
-    const hoursCol = document.createElement('div');
-    hoursCol.className = 'picker-time-col';
-    for (let i = 0; i < 24; i++) {
-      const v = pad(i);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'picker-time-option' + (v === h ? ' selected' : '');
-      btn.textContent = v;
-      btn.addEventListener('click', () => setValue(`${v}:${m || '00'}`));
-      hoursCol.appendChild(btn);
-    }
-
-    const minutesCol = document.createElement('div');
-    minutesCol.className = 'picker-time-col';
-    for (let i = 0; i < 60; i++) {
-      const v = pad(i);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'picker-time-option' + (v === m ? ' selected' : '');
-      btn.textContent = v;
-      btn.addEventListener('click', () => setValue(`${h || '00'}:${v}`));
-      minutesCol.appendChild(btn);
-    }
-
-    popup.append(hoursCol, minutesCol);
-  }
-
-  display.addEventListener('focus', () => {
-    closeAllPickerPopups();
-    renderPopup();
-    popup.classList.remove('hidden');
-    const selected = popup.querySelector('.selected');
-    if (selected) selected.scrollIntoView({ block: 'center' });
-  });
-
-  display.addEventListener('input', () => {
-    const digits = display.value.replace(/\D/g, '').slice(0, 4);
-    display.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
-    if (TIME_PATTERN.test(display.value)) setValue(display.value);
-  });
-
-  display.addEventListener('blur', syncDisplay);
-  display.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') popup.classList.add('hidden');
-  });
-
-  syncDisplay();
-  return syncDisplay;
-}
-
 const refreshFieldDatePicker = attachDatePicker(fieldDate);
 const refreshFieldEndDatePicker = attachDatePicker(fieldEndDate);
-const refreshFieldStartTimePicker = attachTimePicker(fieldStartTime);
-const refreshFieldEndTimePicker = attachTimePicker(fieldEndTime);
 
-// à appeler chaque fois que le code met à jour fieldDate/fieldEndDate/fieldStartTime/fieldEndTime
-// directement (sans passer par le picker), pour que l'affichage jj/mm/aaaa ou HH:mm reste à jour
+// à appeler chaque fois que le code met à jour fieldDate/fieldEndDate directement
+// (sans passer par le picker), pour que l'affichage jj/mm/aaaa reste à jour
 function refreshAllPickers() {
   refreshFieldDatePicker();
   refreshFieldEndDatePicker();
-  refreshFieldStartTimePicker();
-  refreshFieldEndTimePicker();
 }
 
 document.addEventListener('click', (e) => {
