@@ -55,12 +55,25 @@ function todayString() {
 
 function memberById(id) { return members.find(m => m.id === id); }
 
-// couleur unique, ou dégradé linéaire quand plusieurs membres sont concernés
+// couleur unique, ou dégradé par bandes quand plusieurs membres sont concernés :
+// chaque couleur occupe une bande unie (deux points à la même teinte) séparée
+// de la suivante par une petite zone de transition, plutôt qu'un dégradé continu
 function memberAccent(memberIds) {
   const colors = (memberIds || []).map(memberById).filter(Boolean).map(m => m.color);
   if (colors.length === 0) return '#999';
   if (colors.length === 1) return colors[0];
-  return `linear-gradient(135deg, ${colors.join(', ')})`;
+
+  const n = colors.length;
+  const bandWidth = 100 / n;
+  const blend = Math.min(10, bandWidth * 0.4);
+
+  const stops = colors.flatMap((color, i) => {
+    const solidStart = i === 0 ? 0 : i * bandWidth + blend / 2;
+    const solidEnd = i === n - 1 ? 100 : (i + 1) * bandWidth - blend / 2;
+    return [`${color} ${solidStart.toFixed(1)}%`, `${color} ${solidEnd.toFixed(1)}%`];
+  });
+
+  return `linear-gradient(135deg, ${stops.join(', ')})`;
 }
 
 function escapeHtml(str) {
