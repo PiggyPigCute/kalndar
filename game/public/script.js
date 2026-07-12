@@ -42,6 +42,7 @@ const fieldEndDate = document.getElementById('fieldEndDate');
 const fieldMembers = document.getElementById('fieldMembers');
 const fieldStartTime = document.getElementById('fieldStartTime');
 const fieldEndTime = document.getElementById('fieldEndTime');
+[fieldStartTime, fieldEndTime].forEach(input => input.addEventListener('input', formatTimeInput));
 const fieldDescription = document.getElementById('fieldDescription');
 const formError = document.getElementById('formError');
 const deleteEventBtn = document.getElementById('deleteEventBtn');
@@ -68,6 +69,15 @@ function parseDateEU(str) {
   const date = new Date(Number(y), Number(m) - 1, Number(d));
   if (date.getFullYear() !== Number(y) || date.getMonth() !== Number(m) - 1 || date.getDate() !== Number(d)) return null;
   return `${y}-${m}-${d}`;
+}
+
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+function isValidTimeInput(value) { return value === '' || TIME_PATTERN.test(value); }
+
+// insère automatiquement le ":" pendant la saisie, en gardant un format HH:mm 24h
+function formatTimeInput(e) {
+  const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+  e.target.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
 }
 
 function memberById(id) { return members.find(m => m.id === id); }
@@ -585,6 +595,12 @@ eventForm.addEventListener('submit', async (e) => {
   const endDate = fieldEndDate.value || fieldDate.value;
   if (endDate < fieldDate.value) {
     formError.textContent = 'La date de fin doit être postérieure ou égale à la date de début.';
+    formError.classList.remove('hidden');
+    return;
+  }
+
+  if (!isValidTimeInput(fieldStartTime.value) || !isValidTimeInput(fieldEndTime.value)) {
+    formError.textContent = 'Heure invalide : utilise le format HH:mm (24h), ex. 14:30';
     formError.classList.remove('hidden');
     return;
   }
