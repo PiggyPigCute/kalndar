@@ -23,13 +23,29 @@ const pushSubscriptionsPath = path.join(__dirname, 'data', 'push-subscriptions.j
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
 const validMemberIds = new Set(members.map(m => m.id));
 
+// anciens événements enregistrés avant l'ajout de memberIds[], endDate et notify
+function migrateEvent(event) {
+  const { memberId, ...rest } = event;
+  return {
+    ...rest,
+    memberIds: Array.isArray(event.memberIds) ? event.memberIds : (memberId ? [memberId] : []),
+    endDate: event.endDate || event.date,
+    notify: event.notify === true,
+  };
+}
+
 function loadEvents() {
+  let raw;
   try {
-    const raw = JSON.parse(fs.readFileSync(eventsPath, 'utf8'));
-    return raw.map(migrateEvent);
-  } catch {
-    return [];
+    raw = fs.readFileSync(eventsPath, 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') return []; // premier lancement : pas encore de fichier
+    throw err;
   }
+  // toute erreur ici (JSON invalide, migration cassée...) doit faire planter le
+  // démarrage plutôt que de repartir silencieusement d'un tableau vide : sinon
+  // le premier événement ajouté écraserait data/events.json avec juste lui-même
+  return JSON.parse(raw).map(migrateEvent);
 }
 
 function saveEvents() {
