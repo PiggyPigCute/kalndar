@@ -232,7 +232,7 @@ function renderCalendar() {
     eventsByDate.get(ev.date).push(ev);
   });
   eventsByDate.forEach(list => {
-    list.sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99'));
+    list.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
   });
 
   calendarGrid.innerHTML = '';
