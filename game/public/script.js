@@ -262,12 +262,43 @@ function selectDate(date) {
   renderDayPanel();
 }
 
+function buildDayPanelItem(ev) {
+  const member = memberById(ev.memberId);
+  const timeLabel = ev.startTime ? (ev.endTime ? `${ev.startTime}–${ev.endTime}` : ev.startTime) : '';
+
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'day-panel-item';
+  item.style.setProperty('--item-color', member ? member.color : '#999');
+  item.innerHTML = `
+    ${timeLabel ? `<div class="day-panel-item-time">${escapeHtml(timeLabel)}</div>` : ''}
+    <div class="day-panel-item-body">
+      <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
+      ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
+      <div class="day-panel-item-member">${escapeHtml(member ? member.name : '')}</div>
+    </div>
+  `;
+  item.addEventListener('click', () => openEditModal(ev));
+  return item;
+}
+
+function renderDayPanelSection(title, dayEvents) {
+  if (dayEvents.length === 0) return;
+  const heading = document.createElement('h3');
+  heading.className = 'day-panel-section-title';
+  heading.textContent = title;
+  dayPanelList.appendChild(heading);
+  dayEvents.forEach(ev => dayPanelList.appendChild(buildDayPanelItem(ev)));
+}
+
 function renderDayPanel() {
   dayPanelDate.textContent = formatFullDate(selectedDate);
 
-  const dayEvents = events
-    .filter(ev => ev.date === selectedDate)
-    .sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99'));
+  const dayEvents = events.filter(ev => ev.date === selectedDate);
+  const allDayEvents = dayEvents.filter(ev => !ev.startTime);
+  const timedEvents = dayEvents
+    .filter(ev => ev.startTime)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   dayPanelList.innerHTML = '';
 
@@ -279,27 +310,8 @@ function renderDayPanel() {
     return;
   }
 
-  dayEvents.forEach(ev => {
-    const member = memberById(ev.memberId);
-    const timeLabel = ev.startTime
-      ? (ev.endTime ? `${ev.startTime}–${ev.endTime}` : ev.startTime)
-      : 'Toute la journée';
-
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'day-panel-item';
-    item.style.setProperty('--item-color', member ? member.color : '#999');
-    item.innerHTML = `
-      <div class="day-panel-item-time">${escapeHtml(timeLabel)}</div>
-      <div class="day-panel-item-body">
-        <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
-        ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
-        <div class="day-panel-item-member">${escapeHtml(member ? member.name : '')}</div>
-      </div>
-    `;
-    item.addEventListener('click', () => openEditModal(ev));
-    dayPanelList.appendChild(item);
-  });
+  renderDayPanelSection('Toute la journée', allDayEvents);
+  renderDayPanelSection('Heure précise', timedEvents);
 }
 
 dayPanelAddBtn.addEventListener('click', () => openNewModal(selectedDate));
