@@ -270,6 +270,16 @@ app.post('/api/events', requireAuth, (req, res) => {
   saveEvents();
   io.emit('events:changed');
   res.status(201).json(event);
+
+  const creator = memberById(req.memberId);
+  const otherMemberIds = event.memberIds.filter(id => id !== req.memberId);
+  if (otherMemberIds.length > 0) {
+    sendPushToMembers(otherMemberIds, {
+      title: `${creator.name} t'a ajouté à un événement`,
+      body: event.title,
+      url: '/',
+    });
+  }
 });
 
 app.put('/api/events/:id', requireAuth, (req, res) => {
