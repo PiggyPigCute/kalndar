@@ -256,11 +256,6 @@ function renderCalendar() {
       pill.className = 'event-pill';
       pill.style.background = memberAccent(ev.memberIds);
       pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
-      pill.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectDate(cell.date);
-        openEditModal(ev);
-      });
       cellEl.appendChild(pill);
     });
 
