@@ -354,7 +354,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
   border-radius: 4px;
   min-width: 0;
 }

@@ -365,11 +365,6 @@ function renderCalendar() {
           if (col < placement.colEnd) bar.classList.add('continues-after');
           bar.style.background = memberAccent(placement.ev.memberIds);
           if (col === placement.colStart) bar.textContent = placement.ev.title;
-          bar.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectDate(cell.date);
-            openEditModal(placement.ev);
-          });
           barsWrap.appendChild(bar);
         }
         cellEl.appendChild(barsWrap);
@@ -381,11 +376,6 @@ function renderCalendar() {
         pill.className = 'event-pill';
         pill.style.background = memberAccent(ev.memberIds);
         pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
-        pill.addEventListener('click', (e) => {
-          e.stopPropagation();
-          selectDate(cell.date);
-          openEditModal(ev);
-        });
         cellEl.appendChild(pill);
       });
 
@@ -419,6 +409,15 @@ function addDays(dateStr, delta) {
   const date = new Date(y, m - 1, d);
   date.setDate(date.getDate() + delta);
   return formatDate(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+// même jour du mois `delta` mois plus tard/tôt ; ramené au dernier jour du mois
+// cible s'il n'a pas assez de jours (ex. 31 janvier + 1 mois -> 28/29 février)
+function addMonths(dateStr, delta) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1 + delta, 1);
+  const daysInTargetMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return formatDate(target.getFullYear(), target.getMonth(), Math.min(d, daysInTargetMonth));
 }
 
 function moveSelection(delta) {
@@ -534,7 +533,9 @@ function navigateMonth(direction) {
   calendarGrid.classList.add(exitClass);
   setTimeout(() => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1);
+    selectedDate = addMonths(selectedDate, direction);
     renderCalendar();
+    renderDayPanel();
 
     calendarGrid.classList.remove(exitClass);
     calendarGrid.classList.add('no-transition', enterClass);
