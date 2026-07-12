@@ -268,29 +268,31 @@ body {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .day-cell {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   min-height: 100px;
   padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
-.day-cell:hover { border-color: var(--accent); }
+.day-cell:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 
 .day-cell.outside { opacity: 0.4; }
 
 .day-cell.today {
-  border-color: var(--accent);
-  border-width: 2px;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .day-cell.selected {
@@ -319,6 +321,46 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
   padding: 0 2px;
+}
+
+/* barres d'événements sur plusieurs jours : traversent la cellule de bord à bord
+   (marge négative annulant le padding de .day-cell) pour rester visuellement continues
+   d'une cellule à l'autre ; coins arrondis seulement au vrai début/fin de l'événement */
+.event-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.event-bar {
+  height: 16px;
+  line-height: 16px;
+  font-size: 0.68rem;
+  padding: 0 6px;
+  color: var(--surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.event-bar.continues-before {
+  margin-left: -6px;
+  padding-left: 2px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.event-bar.continues-after {
+  margin-right: -6px;
+  padding-right: 2px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.event-bar-spacer {
+  height: 16px;
 }
 
 /* Day panel */
@@ -458,6 +500,12 @@ body {
   color: var(--text-muted);
   margin-top: 2px;
   white-space: pre-wrap;
+}
+
+.day-panel-item-range {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .day-panel-item-member {

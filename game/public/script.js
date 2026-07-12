@@ -38,6 +38,7 @@ const modalTitle = document.getElementById('modalTitle');
 const eventForm = document.getElementById('eventForm');
 const fieldTitle = document.getElementById('fieldTitle');
 const fieldDate = document.getElementById('fieldDate');
+const fieldEndDate = document.getElementById('fieldEndDate');
 const fieldMembers = document.getElementById('fieldMembers');
 const fieldStartTime = document.getElementById('fieldStartTime');
 const fieldEndTime = document.getElementById('fieldEndTime');
@@ -54,6 +55,14 @@ function todayString() {
 }
 
 function memberById(id) { return members.find(m => m.id === id); }
+
+function daysBetween(dateStrA, dateStrB) {
+  const [ay, am, ad] = dateStrA.split('-').map(Number);
+  const [by, bm, bd] = dateStrB.split('-').map(Number);
+  const a = new Date(ay, am - 1, ad);
+  const b = new Date(by, bm - 1, bd);
+  return Math.round((b - a) / 86400000);
+}
 
 // couleur unique, ou dégradé par bandes quand plusieurs membres sont concernés :
 // chaque couleur occupe une bande unie (deux points à la même teinte) séparée
@@ -88,6 +97,11 @@ function formatFullDate(dateStr) {
   const weekday = date.toLocaleDateString('fr-FR', { weekday: 'long' });
   const dayMonth = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
   return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${dayMonth} ${y}`;
+}
+
+function formatShortDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
 async function fetchJSON(url, options) {
@@ -226,49 +240,114 @@ function renderCalendar() {
   }
 
   const today = todayString();
-  const eventsByDate = new Map();
+
+  // événements d'un seul jour : regroupés par date, pour les pastilles habituelles
+  const singleDayEventsByDate = new Map();
   events.forEach(ev => {
-    if (!eventsByDate.has(ev.date)) eventsByDate.set(ev.date, []);
-    eventsByDate.get(ev.date).push(ev);
+    if (ev.endDate !== ev.date) return;
+    if (!singleDayEventsByDate.has(ev.date)) singleDayEventsByDate.set(ev.date, []);
+    singleDayEventsByDate.get(ev.date).push(ev);
   });
-  eventsByDate.forEach(list => {
+  singleDayEventsByDate.forEach(list => {
     list.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
   });
+
+  // événements sur plusieurs jours : traités par ligne de semaine (voir plus bas)
+  const multiDayEvents = events
+    .filter(ev => ev.endDate !== ev.date)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 
   calendarGrid.innerHTML = '';
   const MAX_VISIBLE = 3;
 
-  cells.forEach(cell => {
-    const cellEl = document.createElement('div');
-    cellEl.className = 'day-cell'
-      + (cell.outside ? ' outside' : '')
-      + (cell.date === today ? ' today' : '')
-      + (cell.date === selectedDate ? ' selected' : '');
+  for (let rowStart = 0; rowStart < cells.length; rowStart += 7) {
+    const rowCells = cells.slice(rowStart, rowStart + 7);
+    const rowFirstDate = rowCells[0].date;
+    const rowLastDate = rowCells[6].date;
 
-    const numberEl = document.createElement('div');
-    numberEl.className = 'day-number';
-    numberEl.textContent = cell.date === today ? `${cell.day} · Aujourd'hui` : cell.day;
-    cellEl.appendChild(numberEl);
+    // assignation des barres à des "lanes" (rangées empilées) pour cette semaine :
+    // chaque événement garde la même lane sur toute sa traversée de la ligne
+    const laneLastCol = [];
+    const placements = [];
+    multiDayEvents
+      .filter(ev => ev.date <= rowLastDate && ev.endDate >= rowFirstDate)
+      .forEach(ev => {
+        const colStart = ev.date <= rowFirstDate ? 0 : daysBetween(rowFirstDate, ev.date);
+        const colEnd = ev.endDate >= rowLastDate ? 6 : daysBetween(rowFirstDate, ev.endDate);
+        let lane = laneLastCol.findIndex(lastCol => lastCol < colStart);
+        if (lane === -1) {
+          lane = laneLastCol.length;
+          laneLastCol.push(colEnd);
+        } else {
+          laneLastCol[lane] = colEnd;
+        }
+        placements.push({ ev, colStart, colEnd, lane });
+      });
 
-    const dayEvents = eventsByDate.get(cell.date) || [];
-    dayEvents.slice(0, MAX_VISIBLE).forEach(ev => {
-      const pill = document.createElement('div');
-      pill.className = 'event-pill';
-      pill.style.background = memberAccent(ev.memberIds);
-      pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
-      cellEl.appendChild(pill);
+    rowCells.forEach((cell, col) => {
+      const cellEl = document.createElement('div');
+      cellEl.className = 'day-cell'
+        + (cell.outside ? ' outside' : '')
+        + (cell.date === today ? ' today' : '')
+        + (cell.date === selectedDate ? ' selected' : '');
+
+      const numberEl = document.createElement('div');
+      numberEl.className = 'day-number';
+      numberEl.textContent = cell.date === today ? `${cell.day} · Aujourd'hui` : cell.day;
+      cellEl.appendChild(numberEl);
+
+      if (laneLastCol.length > 0) {
+        const barsWrap = document.createElement('div');
+        barsWrap.className = 'event-bars';
+        for (let lane = 0; lane < laneLastCol.length; lane++) {
+          const placement = placements.find(p => p.lane === lane && col >= p.colStart && col <= p.colEnd);
+          if (!placement) {
+            const spacer = document.createElement('div');
+            spacer.className = 'event-bar-spacer';
+            barsWrap.appendChild(spacer);
+            continue;
+          }
+          const bar = document.createElement('div');
+          bar.className = 'event-bar';
+          if (col > placement.colStart) bar.classList.add('continues-before');
+          if (col < placement.colEnd) bar.classList.add('continues-after');
+          bar.style.background = memberAccent(placement.ev.memberIds);
+          if (col === placement.colStart) bar.textContent = placement.ev.title;
+          bar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectDate(cell.date);
+            openEditModal(placement.ev);
+          });
+          barsWrap.appendChild(bar);
+        }
+        cellEl.appendChild(barsWrap);
+      }
+
+      const dayEvents = singleDayEventsByDate.get(cell.date) || [];
+      dayEvents.slice(0, MAX_VISIBLE).forEach(ev => {
+        const pill = document.createElement('div');
+        pill.className = 'event-pill';
+        pill.style.background = memberAccent(ev.memberIds);
+        pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
+        pill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectDate(cell.date);
+          openEditModal(ev);
+        });
+        cellEl.appendChild(pill);
+      });
+
+      if (dayEvents.length > MAX_VISIBLE) {
+        const more = document.createElement('div');
+        more.className = 'event-more';
+        more.textContent = `+${dayEvents.length - MAX_VISIBLE} autre(s)`;
+        cellEl.appendChild(more);
+      }
+
+      cellEl.addEventListener('click', () => selectDate(cell.date));
+      calendarGrid.appendChild(cellEl);
     });
-
-    if (dayEvents.length > MAX_VISIBLE) {
-      const more = document.createElement('div');
-      more.className = 'event-more';
-      more.textContent = `+${dayEvents.length - MAX_VISIBLE} autre(s)`;
-      cellEl.appendChild(more);
-    }
-
-    cellEl.addEventListener('click', () => selectDate(cell.date));
-    calendarGrid.appendChild(cellEl);
-  });
+  }
 }
 
 // sélectionne une date ; bascule automatiquement le mois affiché si cette date
@@ -336,6 +415,9 @@ function buildDayPanelItem(ev) {
       ${ev.endTime ? `<span class="day-panel-item-time-end">${escapeHtml(ev.endTime)}</span>` : ''}
     </div>
   ` : '';
+  const rangeHtml = ev.endDate !== ev.date
+    ? `<div class="day-panel-item-range">Du ${formatShortDate(ev.date)} au ${formatShortDate(ev.endDate)}</div>`
+    : '';
 
   const item = document.createElement('button');
   item.type = 'button';
@@ -345,6 +427,7 @@ function buildDayPanelItem(ev) {
     ${timeHtml}
     <div class="day-panel-item-body">
       <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
+      ${rangeHtml}
       <div class="day-panel-item-member">${memberNamesHtml}</div>
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
     </div>
@@ -365,7 +448,7 @@ function renderDayPanelSection(title, dayEvents) {
 function renderDayPanel() {
   dayPanelDate.textContent = formatFullDate(selectedDate);
 
-  const dayEvents = events.filter(ev => ev.date === selectedDate);
+  const dayEvents = events.filter(ev => ev.date <= selectedDate && ev.endDate >= selectedDate);
   const allDayEvents = dayEvents.filter(ev => !ev.startTime);
   const timedEvents = dayEvents
     .filter(ev => ev.startTime)
@@ -429,6 +512,7 @@ function openNewModal(date) {
   eventForm.reset();
   renderMemberCheckboxes(currentMember ? [currentMember.id] : []);
   fieldDate.value = date;
+  fieldEndDate.value = date;
   formError.classList.add('hidden');
   deleteEventBtn.classList.add('hidden');
   modalOverlay.classList.remove('hidden');
@@ -441,6 +525,7 @@ function openEditModal(ev) {
   renderMemberCheckboxes(ev.memberIds || []);
   fieldTitle.value = ev.title;
   fieldDate.value = ev.date;
+  fieldEndDate.value = ev.endDate || ev.date;
   fieldStartTime.value = ev.startTime || '';
   fieldEndTime.value = ev.endTime || '';
   fieldDescription.value = ev.description || '';
@@ -454,6 +539,12 @@ function closeModal() {
   modalOverlay.classList.add('hidden');
   editingEventId = null;
 }
+
+fieldDate.addEventListener('change', () => {
+  if (fieldEndDate.value && fieldEndDate.value < fieldDate.value) {
+    fieldEndDate.value = fieldDate.value;
+  }
+});
 
 cancelModalBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', (e) => {
@@ -472,9 +563,17 @@ eventForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  const endDate = fieldEndDate.value || fieldDate.value;
+  if (endDate < fieldDate.value) {
+    formError.textContent = 'La date de fin doit être postérieure ou égale à la date de début.';
+    formError.classList.remove('hidden');
+    return;
+  }
+
   const payload = {
     title: fieldTitle.value,
     date: fieldDate.value,
+    endDate,
     memberIds,
     startTime: fieldStartTime.value || null,
     endTime: fieldEndTime.value || null,
