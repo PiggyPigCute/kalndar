@@ -38,7 +38,7 @@ const modalTitle = document.getElementById('modalTitle');
 const eventForm = document.getElementById('eventForm');
 const fieldTitle = document.getElementById('fieldTitle');
 const fieldDate = document.getElementById('fieldDate');
-const fieldMember = document.getElementById('fieldMember');
+const fieldMembers = document.getElementById('fieldMembers');
 const fieldStartTime = document.getElementById('fieldStartTime');
 const fieldEndTime = document.getElementById('fieldEndTime');
 const fieldDescription = document.getElementById('fieldDescription');
@@ -54,6 +54,14 @@ function todayString() {
 }
 
 function memberById(id) { return members.find(m => m.id === id); }
+
+// couleur unique, ou dégradé linéaire quand plusieurs membres sont concernés
+function memberAccent(memberIds) {
+  const colors = (memberIds || []).map(memberById).filter(Boolean).map(m => m.color);
+  if (colors.length === 0) return '#999';
+  if (colors.length === 1) return colors[0];
+  return `linear-gradient(135deg, ${colors.join(', ')})`;
+}
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -231,10 +239,9 @@ function renderCalendar() {
 
     const dayEvents = eventsByDate.get(cell.date) || [];
     dayEvents.slice(0, MAX_VISIBLE).forEach(ev => {
-      const member = memberById(ev.memberId);
       const pill = document.createElement('div');
       pill.className = 'event-pill';
-      pill.style.background = member ? member.color : '#999';
+      pill.style.background = memberAccent(ev.memberIds);
       pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
       pill.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -263,7 +270,7 @@ function selectDate(date) {
 }
 
 function buildDayPanelItem(ev) {
-  const member = memberById(ev.memberId);
+  const memberNames = (ev.memberIds || []).map(memberById).filter(Boolean).map(m => m.name).join(', ');
   const timeHtml = ev.startTime ? `
     <div class="day-panel-item-time">
       <span class="day-panel-item-time-start">${escapeHtml(ev.startTime)}</span>
@@ -274,12 +281,12 @@ function buildDayPanelItem(ev) {
   const item = document.createElement('button');
   item.type = 'button';
   item.className = 'day-panel-item';
-  item.style.setProperty('--item-color', member ? member.color : '#999');
+  item.style.setProperty('--item-accent', memberAccent(ev.memberIds));
   item.innerHTML = `
     ${timeHtml}
     <div class="day-panel-item-body">
       <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
-      <div class="day-panel-item-member">${escapeHtml(member ? member.name : '')}</div>
+      <div class="day-panel-item-member">${escapeHtml(memberNames)}</div>
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
     </div>
   `;
@@ -338,23 +345,31 @@ todayBtn.addEventListener('click', () => {
 
 // --- Event modal ---
 
-function populateMemberSelect() {
-  fieldMember.innerHTML = '';
+function renderMemberCheckboxes(checkedIds) {
+  fieldMembers.innerHTML = '';
   members.forEach(member => {
-    const option = document.createElement('option');
-    option.value = member.id;
-    option.textContent = member.name;
-    fieldMember.appendChild(option);
+    const label = document.createElement('label');
+    label.className = 'member-checkbox';
+    const checked = checkedIds.includes(member.id) ? 'checked' : '';
+    label.innerHTML = `
+      <input type="checkbox" value="${member.id}" ${checked}>
+      <span class="member-checkbox-dot" style="background:${member.color}"></span>
+      ${escapeHtml(member.name)}
+    `;
+    fieldMembers.appendChild(label);
   });
+}
+
+function getCheckedMemberIds() {
+  return [...fieldMembers.querySelectorAll('input:checked')].map(input => input.value);
 }
 
 function openNewModal(date) {
   editingEventId = null;
   modalTitle.textContent = 'Nouvel événement';
   eventForm.reset();
-  populateMemberSelect();
+  renderMemberCheckboxes(currentMember ? [currentMember.id] : []);
   fieldDate.value = date;
-  if (currentMember) fieldMember.value = currentMember.id;
   formError.classList.add('hidden');
   deleteEventBtn.classList.add('hidden');
   modalOverlay.classList.remove('hidden');
@@ -364,10 +379,9 @@ function openNewModal(date) {
 function openEditModal(ev) {
   editingEventId = ev.id;
   modalTitle.textContent = 'Modifier l\'événement';
-  populateMemberSelect();
+  renderMemberCheckboxes(ev.memberIds || []);
   fieldTitle.value = ev.title;
   fieldDate.value = ev.date;
-  fieldMember.value = ev.memberId;
   fieldStartTime.value = ev.startTime || '';
   fieldEndTime.value = ev.endTime || '';
   fieldDescription.value = ev.description || '';
@@ -392,10 +406,17 @@ eventForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   formError.classList.add('hidden');
 
+  const memberIds = getCheckedMemberIds();
+  if (memberIds.length === 0) {
+    formError.textContent = 'Sélectionne au moins un membre.';
+    formError.classList.remove('hidden');
+    return;
+  }
+
   const payload = {
     title: fieldTitle.value,
     date: fieldDate.value,
-    memberId: fieldMember.value,
+    memberIds,
     startTime: fieldStartTime.value || null,
     endTime: fieldEndTime.value || null,
     description: fieldDescription.value,

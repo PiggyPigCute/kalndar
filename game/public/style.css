@@ -393,17 +393,28 @@ body {
 }
 
 .day-panel-item {
+  position: relative;
   display: flex;
   gap: 10px;
   text-align: left;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--item-color, var(--accent));
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 8px 10px 8px 13px;
   cursor: pointer;
   font-family: inherit;
   color: var(--text);
+  overflow: hidden;
+}
+
+.day-panel-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--item-accent, var(--accent));
 }
 
 .day-panel-item:hover { border-color: var(--accent); }
@@ -497,6 +508,36 @@ body {
 .field-row {
   display: flex;
   gap: 12px;
+}
+
+.member-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.member-checkbox input {
+  margin: 0;
+}
+
+.member-checkbox-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .form-error {

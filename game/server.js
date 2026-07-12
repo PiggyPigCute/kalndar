@@ -18,11 +18,12 @@ const eventsPath = path.join(__dirname, 'data', 'events.json');
 const sessionSecretPath = path.join(__dirname, 'data', 'session-secret');
 
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
-const memberIds = new Set(members.map(m => m.id));
+const validMemberIds = new Set(members.map(m => m.id));
 
 function loadEvents() {
   try {
-    return JSON.parse(fs.readFileSync(eventsPath, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(eventsPath, 'utf8'));
+    return raw.map(migrateEvent);
   } catch {
     return [];
   }
@@ -92,7 +93,7 @@ function verifySessionToken(token) {
   if (dotIndex === -1) return null;
   const memberId = token.slice(0, dotIndex);
   const signature = token.slice(dotIndex + 1);
-  if (!memberIds.has(memberId)) return null;
+  if (!validMemberIds.has(memberId)) return null;
 
   const expected = sign(memberId);
   const a = Buffer.from(signature);
@@ -164,13 +165,22 @@ app.get('/api/events', requireAuth, (req, res) => {
   res.json(events);
 });
 
+function normalizeMemberIds(memberIds) {
+  if (!Array.isArray(memberIds)) return null;
+  const unique = [...new Set(memberIds)];
+  if (unique.length === 0 || !unique.every(id => validMemberIds.has(id))) return null;
+  return unique;
+}
+
 app.post('/api/events', requireAuth, (req, res) => {
-  const { title, date, startTime, endTime, description, memberId } = req.body || {};
+  const { title, date, startTime, endTime, description, memberIds } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
   if (!isValidTime(startTime) || !isValidTime(endTime)) return res.status(400).json({ error: 'Heure invalide' });
-  if (!memberIds.has(memberId)) return res.status(400).json({ error: 'Membre invalide' });
+
+  const normalizedMemberIds = normalizeMemberIds(memberIds);
+  if (!normalizedMemberIds) return res.status(400).json({ error: 'Au moins un membre valide requis' });
 
   const event = {
     id: crypto.randomUUID(),
@@ -179,7 +189,7 @@ app.post('/api/events', requireAuth, (req, res) => {
     startTime: startTime || null,
     endTime: endTime || null,
     description: typeof description === 'string' ? description.trim().slice(0, 2000) : '',
-    memberId,
+    memberIds: normalizedMemberIds,
   };
 
   events.push(event);
@@ -192,19 +202,21 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   const event = events.find(e => e.id === req.params.id);
   if (!event) return res.status(404).json({ error: 'Événement introuvable' });
 
-  const { title, date, startTime, endTime, description, memberId } = req.body || {};
+  const { title, date, startTime, endTime, description, memberIds } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
   if (!isValidTime(startTime) || !isValidTime(endTime)) return res.status(400).json({ error: 'Heure invalide' });
-  if (!memberIds.has(memberId)) return res.status(400).json({ error: 'Membre invalide' });
+
+  const normalizedMemberIds = normalizeMemberIds(memberIds);
+  if (!normalizedMemberIds) return res.status(400).json({ error: 'Au moins un membre valide requis' });
 
   event.title = title.trim().slice(0, 200);
   event.date = date;
   event.startTime = startTime || null;
   event.endTime = endTime || null;
   event.description = typeof description === 'string' ? description.trim().slice(0, 2000) : '';
-  event.memberId = memberId;
+  event.memberIds = normalizedMemberIds;
 
   saveEvents();
   io.emit('events:changed');
