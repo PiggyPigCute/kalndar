@@ -819,8 +819,17 @@ function attachDatePicker(nativeInput) {
     popup.appendChild(grid);
   }
 
+  // point d'entrée commun clic ET tab : repart toujours du jour, avec la
+  // valeur actuelle du champ, plutôt que de laisser le navigateur décider
+  function startEditing() {
+    resetPartsFromValue();
+    renderDisplay();
+    selectSegment(0);
+  }
+
   display.addEventListener('focus', () => {
     closeAllPickerPopups();
+    startEditing();
     const base = nativeInput.value ? nativeInput.value.split('-').map(Number) : null;
     const now = new Date();
     viewYear = base ? base[0] : now.getFullYear();
@@ -829,14 +838,15 @@ function attachDatePicker(nativeInput) {
     popup.classList.remove('hidden');
   });
 
-  // clic (ou re-clic alors que le champ a déjà le focus) : repart toujours du
-  // jour, comme demandé, plutôt que de laisser le navigateur placer le curseur
+  // clic alors que le champ a déjà le focus : 'focus' ne se redéclenche pas,
+  // il faut donc relancer nous-mêmes la sélection du jour
   display.addEventListener('mousedown', (e) => {
     e.preventDefault();
-    display.focus();
-    resetPartsFromValue();
-    renderDisplay();
-    selectSegment(0);
+    if (document.activeElement === display) {
+      startEditing();
+    } else {
+      display.focus(); // déclenche le handler 'focus' ci-dessus
+    }
   });
 
   display.addEventListener('paste', (e) => {
@@ -853,7 +863,11 @@ function attachDatePicker(nativeInput) {
   });
 
   display.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || e.key === 'Tab') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    // ferme la popup avant que le navigateur ne déplace le focus, sinon ses
+    // boutons (encore visibles) seraient la prochaine étape du Tab
+    if (e.key === 'Tab') { popup.classList.add('hidden'); return; }
 
     if (e.key === 'Escape') { popup.classList.add('hidden'); return; }
 
