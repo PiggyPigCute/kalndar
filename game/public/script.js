@@ -775,12 +775,14 @@ function attachDatePicker(nativeInput) {
     const nextBtn = document.createElement('button');
     nextBtn.type = 'button';
     nextBtn.textContent = '›';
-    prevBtn.addEventListener('click', () => {
-      viewMonth--;
-      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // renderPopup() remplace ce bouton dans le DOM pendant que le clic
+      viewMonth--;         // remonte encore : sans ça, l'écouteur "clic en dehors" au niveau du
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; } // document voit une cible détachée et referme la popup
       renderPopup();
     });
-    nextBtn.addEventListener('click', () => {
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       viewMonth++;
       if (viewMonth > 11) { viewMonth = 0; viewYear++; }
       renderPopup();
