@@ -1,2 +1,2 @@
 * Avoir le système d'évènements privés
-* Responsive
+* Application avec notifications
