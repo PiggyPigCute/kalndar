@@ -28,7 +28,6 @@ const calendarGrid = document.getElementById('calendarGrid');
 const prevMonthBtn = document.getElementById('prevMonthBtn');
 const nextMonthBtn = document.getElementById('nextMonthBtn');
 const todayBtn = document.getElementById('todayBtn');
-const newEventBtn = document.getElementById('newEventBtn');
 const dayPanelDate = document.getElementById('dayPanelDate');
 const dayPanelList = document.getElementById('dayPanelList');
 const dayPanelAddBtn = document.getElementById('dayPanelAddBtn');
@@ -579,7 +578,6 @@ cancelModalBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', (e) => {
   if (e.target === modalOverlay) closeModal();
 });
-newEventBtn.addEventListener('click', () => openNewModal(selectedDate));
 
 eventForm.addEventListener('submit', async (e) => {
   e.preventDefault();
