@@ -693,6 +693,9 @@ function attachDatePicker(nativeInput) {
     { name: 'year', len: 4, start: 6, end: 10, mask: 'aaaa' },
   ];
   let segIndex = 0;
+  // vrai juste après avoir (re)sélectionné un segment : le prochain chiffre tapé
+  // remplace tout le segment au lieu de s'ajouter à ce qu'il contenait déjà
+  let freshSegment = true;
   let parts = { day: '', month: '', year: '' };
 
   function resetPartsFromValue() {
@@ -708,9 +711,17 @@ function attachDatePicker(nativeInput) {
     display.value = SEGMENTS.map(seg => (parts[seg.name] + seg.mask).slice(0, seg.len)).join('/');
   }
 
-  function selectSegment(i) {
+  // fresh=true : le segment est entièrement surligné (un chiffre tapé le remplacera) ;
+  // fresh=false : simple curseur après le dernier chiffre tapé (le prochain s'ajoute)
+  function selectSegment(i, fresh = true) {
     segIndex = i;
-    display.setSelectionRange(SEGMENTS[i].start, SEGMENTS[i].end);
+    freshSegment = fresh;
+    if (fresh) {
+      display.setSelectionRange(SEGMENTS[i].start, SEGMENTS[i].end);
+    } else {
+      const pos = SEGMENTS[i].start + parts[SEGMENTS[i].name].length;
+      display.setSelectionRange(pos, pos);
+    }
   }
 
   function syncDisplay() {
@@ -863,21 +874,25 @@ function attachDatePicker(nativeInput) {
       const seg = SEGMENTS[segIndex];
       if (parts[seg.name].length > 0) {
         parts[seg.name] = parts[seg.name].slice(0, -1);
+        renderDisplay();
+        selectSegment(segIndex, false);
       } else if (segIndex > 0) {
-        segIndex--;
-        parts[SEGMENTS[segIndex].name] = parts[SEGMENTS[segIndex].name].slice(0, -1);
+        parts[SEGMENTS[segIndex - 1].name] = parts[SEGMENTS[segIndex - 1].name].slice(0, -1);
+        renderDisplay();
+        selectSegment(segIndex - 1, false);
       }
-      renderDisplay();
-      selectSegment(segIndex);
       return;
     }
     if (/^[0-9]$/.test(e.key)) {
       e.preventDefault();
       const seg = SEGMENTS[segIndex];
-      parts[seg.name] = (parts[seg.name] + e.key).slice(-seg.len);
+      parts[seg.name] = freshSegment ? e.key : (parts[seg.name] + e.key).slice(0, seg.len);
       renderDisplay();
-      if (parts[seg.name].length >= seg.len && segIndex < SEGMENTS.length - 1) segIndex++;
-      selectSegment(segIndex);
+      if (parts[seg.name].length >= seg.len && segIndex < SEGMENTS.length - 1) {
+        selectSegment(segIndex + 1, true);
+      } else {
+        selectSegment(segIndex, false);
+      }
       commitIfComplete();
       return;
     }
