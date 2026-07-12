@@ -410,9 +410,16 @@ body {
 
 .day-panel-item-time {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   font-size: 0.78rem;
   color: var(--text-muted);
   min-width: 42px;
+}
+
+.day-panel-item-time-end {
+  align-self: flex-end;
 }
 
 .day-panel-item-title {

@@ -264,14 +264,19 @@ function selectDate(date) {
 
 function buildDayPanelItem(ev) {
   const member = memberById(ev.memberId);
-  const timeLabel = ev.startTime ? (ev.endTime ? `${ev.startTime}–${ev.endTime}` : ev.startTime) : '';
+  const timeHtml = ev.startTime ? `
+    <div class="day-panel-item-time">
+      <span class="day-panel-item-time-start">${escapeHtml(ev.startTime)}</span>
+      ${ev.endTime ? `<span class="day-panel-item-time-end">${escapeHtml(ev.endTime)}</span>` : ''}
+    </div>
+  ` : '';
 
   const item = document.createElement('button');
   item.type = 'button';
   item.className = 'day-panel-item';
   item.style.setProperty('--item-color', member ? member.color : '#999');
   item.innerHTML = `
-    ${timeLabel ? `<div class="day-panel-item-time">${escapeHtml(timeLabel)}</div>` : ''}
+    ${timeHtml}
     <div class="day-panel-item-body">
       <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
