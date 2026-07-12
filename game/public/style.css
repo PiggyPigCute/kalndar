@@ -571,6 +571,7 @@ body {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
+  min-width: 0;
 }
 
 .field-row {
