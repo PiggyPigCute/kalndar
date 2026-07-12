@@ -415,7 +415,6 @@ body {
   justify-content: space-between;
   font-size: 0.78rem;
   color: var(--text-muted);
-  min-width: 42px;
 }
 
 .day-panel-item-time-end {

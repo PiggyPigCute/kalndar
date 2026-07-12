@@ -279,8 +279,8 @@ function buildDayPanelItem(ev) {
     ${timeHtml}
     <div class="day-panel-item-body">
       <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
-      ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
       <div class="day-panel-item-member">${escapeHtml(member ? member.name : '')}</div>
+      ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
     </div>
   `;
   item.addEventListener('click', () => openEditModal(ev));
