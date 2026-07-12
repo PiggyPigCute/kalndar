@@ -526,11 +526,14 @@ body {
   color: var(--text);
   font-size: 0.85rem;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .member-checkbox:has(input:checked) {
   border-color: var(--member-color, var(--accent));
+  background: var(--member-color, var(--accent));
+  color: var(--surface);
+  font-weight: 600;
 }
 
 .member-checkbox input {

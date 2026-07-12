@@ -1,4 +1,3 @@
-* Améliorer les boutons de choix de membres
 * Rendre les events non-cliquables
 * Mettres les couleurs des membres dans le day-pannel
 * Avoir le système d'évènements privés
