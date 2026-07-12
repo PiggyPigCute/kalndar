@@ -12,7 +12,7 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title || 'Kalndar', {
       body: data.body || '',
       icon: '/icon.svg',
-      badge: '/icon.svg',
+      badge: '/badge.svg',
       data: { url: data.url || '/' },
     })
   );
