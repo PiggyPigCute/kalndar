@@ -20,7 +20,6 @@ const loginPassword = document.getElementById('loginPassword');
 const loginError = document.getElementById('loginError');
 const loginBackBtn = document.getElementById('loginBackBtn');
 const memberFilters = document.getElementById('memberFilters');
-const notifyToggleBtn = document.getElementById('notifyToggleBtn');
 
 // membres actuellement masqués de la grille du calendrier (le day-panel, lui, montre toujours tout)
 const hiddenMemberIds = new Set();
@@ -39,6 +38,7 @@ const modalOverlay = document.getElementById('eventModalOverlay');
 const modalTitle = document.getElementById('modalTitle');
 const eventForm = document.getElementById('eventForm');
 const fieldTitle = document.getElementById('fieldTitle');
+const fieldNotify = document.getElementById('fieldNotify');
 const fieldDate = document.getElementById('fieldDate');
 const fieldEndDate = document.getElementById('fieldEndDate');
 const fieldMembers = document.getElementById('fieldMembers');
@@ -224,7 +224,6 @@ async function showApp(member) {
   await loadEvents();
   renderCalendar();
   renderDayPanel();
-  updateNotifyButtonState();
 }
 
 // filtre d'affichage : coché = visible dans la grille du calendrier (tout le monde par défaut) ;
@@ -611,6 +610,7 @@ function openNewModal(date) {
   renderMemberCheckboxes(currentMember ? [currentMember.id] : []);
   fieldDate.value = date;
   fieldEndDate.value = date;
+  fieldNotify.checked = true;
   refreshAllPickers();
   formError.classList.add('hidden');
   deleteEventBtn.classList.add('hidden');
@@ -627,6 +627,7 @@ function openEditModal(ev) {
   fieldEndDate.value = ev.endDate || ev.date;
   fieldStartTime.value = ev.startTime || '';
   fieldEndTime.value = ev.endTime || '';
+  fieldNotify.checked = !!ev.notify;
   refreshAllPickers();
   fieldDescription.value = ev.description || '';
   formError.classList.add('hidden');
@@ -684,6 +685,7 @@ eventForm.addEventListener('submit', async (e) => {
     startTime: fieldStartTime.value || null,
     endTime: fieldEndTime.value || null,
     description: fieldDescription.value,
+    notify: fieldNotify.checked,
   };
 
   try {
@@ -1075,16 +1077,6 @@ async function getServiceWorkerRegistration() {
   return navigator.serviceWorker.ready.catch(() => null);
 }
 
-async function updateNotifyButtonState() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    notifyToggleBtn.classList.add('hidden');
-    return;
-  }
-  const registration = await getServiceWorkerRegistration();
-  const subscription = registration && await registration.pushManager.getSubscription();
-  notifyToggleBtn.classList.toggle('enabled', !!subscription);
-}
-
 async function subscribeToPush() {
   const registration = await getServiceWorkerRegistration();
   if (!registration) return;
@@ -1101,36 +1093,37 @@ async function subscribeToPush() {
   });
 }
 
-async function unsubscribeFromPush() {
-  const registration = await getServiceWorkerRegistration();
-  const subscription = registration && await registration.pushManager.getSubscription();
-  if (!subscription) return;
+// la première fois qu'on coche "Notifier" sur un événement, on demande l'autorisation
+// du navigateur et on s'abonne au push directement ici, plutôt que via un bouton séparé
+fieldNotify.addEventListener('change', async () => {
+  if (!fieldNotify.checked) return;
 
-  await fetchJSON('/api/push/unsubscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ endpoint: subscription.endpoint }),
-  });
-  await subscription.unsubscribe();
-}
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    fieldNotify.checked = false;
+    alert('Les notifications ne sont pas prises en charge sur ce navigateur.');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    fieldNotify.checked = false;
+    alert('Les notifications sont bloquées pour ce site dans les réglages du navigateur.');
+    return;
+  }
 
-notifyToggleBtn.addEventListener('click', async () => {
   try {
-    if (notifyToggleBtn.classList.contains('enabled')) {
-      await unsubscribeFromPush();
-    } else {
-      if (Notification.permission === 'denied') {
-        alert('Les notifications sont bloquées pour ce site dans les réglages du navigateur.');
+    if (Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        fieldNotify.checked = false;
         return;
       }
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') return;
-      await subscribeToPush();
     }
+    const registration = await getServiceWorkerRegistration();
+    const existing = registration && await registration.pushManager.getSubscription();
+    if (!existing) await subscribeToPush();
   } catch (err) {
     console.error('Notifications push :', err);
+    fieldNotify.checked = false;
   }
-  await updateNotifyButtonState();
 });
 
 if ('serviceWorker' in navigator) {

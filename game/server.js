@@ -242,7 +242,7 @@ function normalizeEndDate(date, endDate) {
 }
 
 app.post('/api/events', requireAuth, (req, res) => {
-  const { title, date, endDate, startTime, endTime, description, memberIds } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, notify } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
@@ -263,6 +263,7 @@ app.post('/api/events', requireAuth, (req, res) => {
     endTime: endTime || null,
     description: typeof description === 'string' ? description.trim().slice(0, 2000) : '',
     memberIds: normalizedMemberIds,
+    notify: notify === true,
   };
 
   events.push(event);
@@ -275,7 +276,7 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   const event = events.find(e => e.id === req.params.id);
   if (!event) return res.status(404).json({ error: 'Événement introuvable' });
 
-  const { title, date, endDate, startTime, endTime, description, memberIds } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, notify } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
@@ -294,6 +295,7 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   event.endTime = endTime || null;
   event.description = typeof description === 'string' ? description.trim().slice(0, 2000) : '';
   event.memberIds = normalizedMemberIds;
+  event.notify = notify === true;
 
   saveEvents();
   io.emit('events:changed');
@@ -352,6 +354,7 @@ function checkUpcomingEvents() {
   const todayStr = todayISO();
 
   events.forEach(ev => {
+    if (!ev.notify) return;
     if (ev.startTime) {
       const key = `${ev.id}:timed`;
       if (notifiedEvents.has(key)) return;
