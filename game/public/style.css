@@ -214,6 +214,15 @@ body {
   color: var(--text);
 }
 
+.notify-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notify-toggle-btn.enabled { color: var(--accent); border-color: var(--accent); }
+
 .today-btn, .secondary-btn {
   background: var(--surface);
   border: 1px solid var(--border);

@@ -20,6 +20,7 @@ const loginPassword = document.getElementById('loginPassword');
 const loginError = document.getElementById('loginError');
 const loginBackBtn = document.getElementById('loginBackBtn');
 const memberFilters = document.getElementById('memberFilters');
+const notifyToggleBtn = document.getElementById('notifyToggleBtn');
 
 // membres actuellement masqués de la grille du calendrier (le day-panel, lui, montre toujours tout)
 const hiddenMemberIds = new Set();
@@ -223,6 +224,7 @@ async function showApp(member) {
   await loadEvents();
   renderCalendar();
   renderDayPanel();
+  updateNotifyButtonState();
 }
 
 // filtre d'affichage : coché = visible dans la grille du calendrier (tout le monde par défaut) ;
@@ -1057,6 +1059,83 @@ socket.on('events:changed', async () => {
     }
   }
 });
+
+// --- Notifications push ---
+
+// conversion requise par l'API PushManager pour la clé VAPID publique (base64url -> Uint8Array)
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function getServiceWorkerRegistration() {
+  if (!('serviceWorker' in navigator)) return null;
+  return navigator.serviceWorker.ready.catch(() => null);
+}
+
+async function updateNotifyButtonState() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    notifyToggleBtn.classList.add('hidden');
+    return;
+  }
+  const registration = await getServiceWorkerRegistration();
+  const subscription = registration && await registration.pushManager.getSubscription();
+  notifyToggleBtn.classList.toggle('enabled', !!subscription);
+}
+
+async function subscribeToPush() {
+  const registration = await getServiceWorkerRegistration();
+  if (!registration) return;
+
+  const { publicKey } = await fetchJSON('/api/push/public-key');
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey),
+  });
+  await fetchJSON('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  });
+}
+
+async function unsubscribeFromPush() {
+  const registration = await getServiceWorkerRegistration();
+  const subscription = registration && await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  await fetchJSON('/api/push/unsubscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: subscription.endpoint }),
+  });
+  await subscription.unsubscribe();
+}
+
+notifyToggleBtn.addEventListener('click', async () => {
+  try {
+    if (notifyToggleBtn.classList.contains('enabled')) {
+      await unsubscribeFromPush();
+    } else {
+      if (Notification.permission === 'denied') {
+        alert('Les notifications sont bloquées pour ce site dans les réglages du navigateur.');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+      await subscribeToPush();
+    }
+  } catch (err) {
+    console.error('Notifications push :', err);
+  }
+  await updateNotifyButtonState();
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service worker :', err));
+}
 
 // --- Boot ---
 

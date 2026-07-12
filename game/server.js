@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Server } = require('socket.io');
+const webpush = require('web-push');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,6 +17,8 @@ app.use(express.static('public'));
 const membersPath = path.join(__dirname, 'data/members.json');
 const eventsPath = path.join(__dirname, 'data', 'events.json');
 const sessionSecretPath = path.join(__dirname, 'data', 'session-secret');
+const vapidKeysPath = path.join(__dirname, 'data', 'vapid-keys.json');
+const pushSubscriptionsPath = path.join(__dirname, 'data', 'push-subscriptions.json');
 
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
 const validMemberIds = new Set(members.map(m => m.id));
@@ -46,6 +49,36 @@ function loadOrCreateSessionSecret() {
     return secret;
   }
 }
+
+function loadOrCreateVapidKeys() {
+  try {
+    return JSON.parse(fs.readFileSync(vapidKeysPath, 'utf8'));
+  } catch {
+    const keys = webpush.generateVAPIDKeys();
+    fs.mkdirSync(path.dirname(vapidKeysPath), { recursive: true });
+    fs.writeFileSync(vapidKeysPath, JSON.stringify(keys, null, 2));
+    return keys;
+  }
+}
+
+function loadPushSubscriptions() {
+  try {
+    return JSON.parse(fs.readFileSync(pushSubscriptionsPath, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function savePushSubscriptions() {
+  fs.mkdirSync(path.dirname(pushSubscriptionsPath), { recursive: true });
+  fs.writeFileSync(pushSubscriptionsPath, JSON.stringify(pushSubscriptions, null, 2));
+}
+
+// { [memberId]: [ { endpoint, keys: { p256dh, auth } }, ... ] } — plusieurs appareils par membre
+let pushSubscriptions = loadPushSubscriptions();
+
+const vapidKeys = loadOrCreateVapidKeys();
+webpush.setVapidDetails('mailto:admin@localhost', vapidKeys.publicKey, vapidKeys.privateKey);
 
 const sessionSecret = loadOrCreateSessionSecret();
 const SESSION_COOKIE = 'kalndar_session';
@@ -165,6 +198,35 @@ app.get('/api/events', requireAuth, (req, res) => {
   res.json(events);
 });
 
+app.get('/api/push/public-key', requireAuth, (req, res) => {
+  res.json({ publicKey: vapidKeys.publicKey });
+});
+
+app.post('/api/push/subscribe', requireAuth, (req, res) => {
+  const subscription = req.body;
+  if (!subscription || typeof subscription.endpoint !== 'string' || !subscription.keys) {
+    return res.status(400).json({ error: 'Abonnement invalide' });
+  }
+
+  const list = pushSubscriptions[req.memberId] || [];
+  if (!list.some(s => s.endpoint === subscription.endpoint)) {
+    list.push(subscription);
+    pushSubscriptions[req.memberId] = list;
+    savePushSubscriptions();
+  }
+  res.status(204).end();
+});
+
+app.post('/api/push/unsubscribe', requireAuth, (req, res) => {
+  const { endpoint } = req.body || {};
+  const list = pushSubscriptions[req.memberId];
+  if (list && endpoint) {
+    pushSubscriptions[req.memberId] = list.filter(s => s.endpoint !== endpoint);
+    savePushSubscriptions();
+  }
+  res.status(204).end();
+});
+
 function normalizeMemberIds(memberIds) {
   if (!Array.isArray(memberIds)) return null;
   const unique = [...new Set(memberIds)];
@@ -247,6 +309,79 @@ app.delete('/api/events/:id', requireAuth, (req, res) => {
   io.emit('events:changed');
   res.status(204).end();
 });
+
+// --- Notifications push ---
+
+const LEAD_MINUTES = 30; // rappel avant un événement à heure précise
+const MORNING_HOUR = 8; // heure du rappel le jour même pour un événement "toute la journée"
+
+// en mémoire seulement : évite de renotifier deux fois le même événement tant
+// que le serveur tourne (une redémarrage peut donc, au pire, renvoyer un rappel)
+const notifiedEvents = new Set();
+
+function todayISO() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function eventStartDate(ev) {
+  const [y, m, d] = ev.date.split('-').map(Number);
+  const [h, min] = ev.startTime.split(':').map(Number);
+  return new Date(y, m - 1, d, h, min);
+}
+
+async function sendPushToMembers(memberIds, payload) {
+  const body = JSON.stringify(payload);
+  for (const memberId of memberIds) {
+    const subs = pushSubscriptions[memberId] || [];
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(sub, body);
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          pushSubscriptions[memberId] = (pushSubscriptions[memberId] || []).filter(s => s.endpoint !== sub.endpoint);
+          savePushSubscriptions();
+        }
+      }
+    }
+  }
+}
+
+function checkUpcomingEvents() {
+  const now = new Date();
+  const todayStr = todayISO();
+
+  events.forEach(ev => {
+    if (ev.startTime) {
+      const key = `${ev.id}:timed`;
+      if (notifiedEvents.has(key)) return;
+      const start = eventStartDate(ev);
+      const notifyAt = new Date(start.getTime() - LEAD_MINUTES * 60000);
+      if (now >= notifyAt && now < start) {
+        notifiedEvents.add(key);
+        sendPushToMembers(ev.memberIds, {
+          title: ev.title,
+          body: `à ${ev.startTime}${ev.description ? ' — ' + ev.description : ''}`,
+          url: '/',
+        });
+      }
+    } else if (ev.date === todayStr) {
+      const key = `${ev.id}:allday:${todayStr}`;
+      if (notifiedEvents.has(key)) return;
+      if (now.getHours() >= MORNING_HOUR) {
+        notifiedEvents.add(key);
+        sendPushToMembers(ev.memberIds, {
+          title: ev.title,
+          body: ev.endDate !== ev.date ? 'Toute la journée (sur plusieurs jours)' : 'Toute la journée',
+          url: '/',
+        });
+      }
+    }
+  });
+}
+
+setInterval(checkUpcomingEvents, 60 * 1000);
+checkUpcomingEvents();
 
 const PORT = process.env.PORT || 3002;
 server.listen(PORT, () => {

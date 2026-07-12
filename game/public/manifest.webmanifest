@@ -1,0 +1,15 @@
+{
+  "name": "Kalndar",
+  "short_name": "Kalndar",
+  "description": "Calendrier partagé pour ma famille",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#16171d",
+  "theme_color": "#3B82F6",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

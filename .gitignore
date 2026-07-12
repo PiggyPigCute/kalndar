@@ -2,3 +2,5 @@ node_modules/
 game/data/events.json
 game/data/members.json
 game/data/session-secret
+game/data/vapid-keys.json
+game/data/push-subscriptions.json
