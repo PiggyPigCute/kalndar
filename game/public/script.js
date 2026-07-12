@@ -1153,7 +1153,7 @@ async function runPushDebug() {
 
   try {
     const result = await fetchJSON('/api/push/test', { method: 'POST' });
-    lines.push(`Abonnements côté serveur : ${result.subscriptions}`, `Envoyés : ${result.sent}`, `Échoués : ${result.failed}`);
+    lines.push('', `Notification de test programmée dans ${result.delaySeconds}s.`, 'Ferme l\'appli (ou verrouille le téléphone) maintenant pour vérifier qu\'elle arrive quand même.');
   } catch (err) {
     lines.push(`Erreur serveur : ${err.message}`);
   }

@@ -360,14 +360,22 @@ async function sendPushToMembers(memberIds, payload) {
 
 // debug : envoie tout de suite une notif de test au membre connecté, sans passer
 // par la logique de date/heure des événements — utile pour isoler le problème
-app.post('/api/push/test', requireAuth, async (req, res) => {
-  const result = await sendPushToMembers([req.memberId], {
-    title: 'Test Kalndar',
-    body: `Notification de test pour ${memberById(req.memberId).name}`,
-    url: '/',
-  });
-  console.log('Push test :', result);
-  res.json(result);
+const PUSH_TEST_DELAY_MS = 30 * 1000;
+
+// répond tout de suite (le temps de fermer l'appli avant l'envoi) puis envoie
+// la notif 30s plus tard, en loguant le résultat (visible via `pm2 logs kalndar`)
+app.post('/api/push/test', requireAuth, (req, res) => {
+  const memberId = req.memberId;
+  res.json({ scheduled: true, delaySeconds: PUSH_TEST_DELAY_MS / 1000 });
+
+  setTimeout(async () => {
+    const result = await sendPushToMembers([memberId], {
+      title: 'Test Kalndar',
+      body: `Notification de test (différée) pour ${memberById(memberId).name}`,
+      url: '/',
+    });
+    console.log('Push test différé :', result);
+  }, PUSH_TEST_DELAY_MS);
 });
 
 function checkUpcomingEvents() {
