@@ -618,6 +618,124 @@ body {
   outline-offset: 2px;
 }
 
+/* Pickers de date/heure (format européen, indépendants de la locale du navigateur) */
+.picker {
+  position: relative;
+}
+
+.picker-display {
+  width: 100%;
+}
+
+.picker-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+}
+
+.picker-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.picker-nav span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--text);
+}
+
+.picker-nav button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.picker-weekdays span {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  width: 224px;
+}
+
+.picker-day {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  width: 30px;
+  height: 28px;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.picker-day:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+.picker-day.outside { color: var(--text-muted); opacity: 0.6; }
+
+.picker-day.today { box-shadow: inset 0 0 0 1px var(--accent); }
+
+.picker-day.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.time-popup {
+  display: flex;
+  gap: 6px;
+}
+
+.picker-time-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+  width: 52px;
+}
+
+.picker-time-option {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.picker-time-option:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+.picker-time-option.selected {
+  background: var(--accent);
+  color: white;
+}
+
 .form-error {
   color: var(--danger);
   font-size: 0.85rem;
