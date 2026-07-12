@@ -20,7 +20,6 @@ const loginPassword = document.getElementById('loginPassword');
 const loginError = document.getElementById('loginError');
 const loginBackBtn = document.getElementById('loginBackBtn');
 const memberFilters = document.getElementById('memberFilters');
-const debugPushBtn = document.getElementById('debugPushBtn');
 
 // membres actuellement masqués de la grille du calendrier (le day-panel, lui, montre toujours tout)
 const hiddenMemberIds = new Set();
@@ -1131,38 +1130,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service worker :', err));
 }
 
-// debug : envoie une notif de test tout de suite (sans dépendre d'un événement) et
-// affiche l'état local (permission, service worker, abonnement) — via alert() pour
-// rester lisible même sur une PWA installée où la console n'est pas accessible
-async function runPushDebug() {
-  const lines = [];
-
-  lines.push(`Notification.permission : ${typeof Notification !== 'undefined' ? Notification.permission : 'API absente'}`);
-
-  const registration = await getServiceWorkerRegistration();
-  lines.push(`Service worker prêt : ${!!registration}`);
-
-  const subscription = registration && await registration.pushManager.getSubscription();
-  lines.push(`Abonnement push local : ${subscription ? 'oui' : 'non'}`);
-
-  if (!subscription) {
-    lines.push('', 'Coche "Notifier" sur un événement pour créer un abonnement, puis relance ce test.');
-    alert(lines.join('\n'));
-    return;
-  }
-
-  try {
-    const result = await fetchJSON('/api/push/test', { method: 'POST' });
-    lines.push('', `Notification de test programmée dans ${result.delaySeconds}s.`, 'Ferme l\'appli (ou verrouille le téléphone) maintenant pour vérifier qu\'elle arrive quand même.');
-  } catch (err) {
-    lines.push(`Erreur serveur : ${err.message}`);
-  }
-
-  alert(lines.join('\n'));
-}
-
-window.testPush = runPushDebug;
-debugPushBtn.addEventListener('click', runPushDebug);
 
 // --- Boot ---
 
