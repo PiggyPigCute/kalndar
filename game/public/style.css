@@ -802,6 +802,7 @@ body {
 
   .topbar h1 { display: none; }
   .nav-group { display: none; }
+  .today-label { display: none; }
 
   .member-checkbox { padding-left: 6px; padding-right: 6px; }
 

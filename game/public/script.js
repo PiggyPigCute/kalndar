@@ -339,7 +339,13 @@ function renderCalendar() {
 
       const numberEl = document.createElement('div');
       numberEl.className = 'day-number';
-      numberEl.textContent = cell.date === today ? `${cell.day} · Aujourd'hui` : cell.day;
+      numberEl.textContent = cell.day;
+      if (cell.date === today) {
+        const todayLabel = document.createElement('span');
+        todayLabel.className = 'today-label';
+        todayLabel.textContent = ' · Aujourd\'hui';
+        numberEl.appendChild(todayLabel);
+      }
       cellEl.appendChild(numberEl);
 
       if (laneLastCol.length > 0) {
