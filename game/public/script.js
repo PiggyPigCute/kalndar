@@ -537,7 +537,7 @@ function buildDayPanelItem(ev) {
   item.innerHTML = `
     ${timeHtml}
     <div class="day-panel-item-body">
-      <div class="day-panel-item-title">${eventIconHtml(ev.icon, 'day-panel-item-icon')}${escapeHtml(ev.title)}</div>
+      <div class="day-panel-item-title">${eventIconMaskHtml(ev.icon, 'day-panel-item-icon')}${escapeHtml(ev.title)}</div>
       ${rangeHtml}
       <div class="day-panel-item-member">${memberNamesHtml}</div>
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
@@ -1281,9 +1281,17 @@ function iconImgSrc(icon) {
   return `/icons/events/${icon}.svg`;
 }
 
-// balise <img> de l'icône d'un événement (pastille, barre, day-panel), ou rien si aucune choisie
+// balise <img> de l'icône d'un événement (pastille, barre), ou rien si aucune choisie
 function eventIconHtml(icon, className) {
   return icon ? `<img class="${className}" src="${iconImgSrc(icon)}" alt="">` : '';
+}
+
+// variante day-panel : un <span> avec l'icône posée en masque CSS plutôt qu'en <img>,
+// pour qu'elle se colore avec --text quel que soit le SVG d'origine (voir style.css)
+function eventIconMaskHtml(icon, className) {
+  if (!icon) return '';
+  const url = iconImgSrc(icon);
+  return `<span class="${className}" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')"></span>`;
 }
 
 function closeIconPickerPopup() {

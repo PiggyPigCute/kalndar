@@ -675,18 +675,28 @@ body {
 }
 
 .event-pill-icon,
-.event-bar-icon,
-.day-panel-item-icon {
+.event-bar-icon {
   width: 12px;
   height: 12px;
   vertical-align: -1px;
   margin-right: 3px;
 }
 
+/* pas un <img> : un <span> avec l'icône en masque, rempli avec --text (voir eventIconMaskHtml
+   dans script.js), pour que l'icône adopte la couleur du texte quel que soit son SVG d'origine */
 .day-panel-item-icon {
+  display: inline-block;
   width: 15px;
   height: 15px;
   vertical-align: -3px;
+  margin-right: 3px;
+  background-color: var(--text);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 .notify-row {
