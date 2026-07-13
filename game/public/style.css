@@ -310,7 +310,7 @@ body {
 
 .day-cell.weekend,
 .day-cell.holiday {
-  background: color-mix(in srgb, var(--border) 30%, var(--surface));
+  background: color-mix(in srgb, var(--border) 50%, var(--surface));
 }
 
 .day-cell.selected {
@@ -1015,27 +1015,35 @@ body {
   margin-left: auto;
 }
 
+/* day-pannel under calendar*/
 @media (max-width: 900px) {
   .app-layout { flex-direction: column; }
   .day-panel { width: 100%; position: static; }
 }
 
+/* mobile */
 @media (max-width: 640px) {
+  #appScreen { padding: 5px; }
+  .day-cell { padding: 1px; }
+  .day-number { margin: 1px 3px; }
+  .event-pill { padding: 0px 1px; }
+  .event-pill-icon { margin-right: 1px; }
+
   .field-row { flex-direction: column; }
   .day-cell { min-height: 76px; }
   .toolbar { justify-content: center; }
   .month-label { order: -1; width: 100%; }
 
-  .title-rest { display: none; }
-  .nav-group { display: none; }
-  .today-label { display: none; }
-  .holiday-label { display: none; }
+  .title-rest { display: none; } /* hide "al'n'dar" */
+  .nav-group { display: none; } /* hide arrows to swipe month */
+  .today-label { display: none; } /* hide « • Aujourd'hui » */
+  .holiday-label { display: none; } /* hide « • Noël » */
 
   .member-checkbox { padding-left: 6px; padding-right: 6px; }
 
   /* .calendar-main va bord à bord (annule le padding horizontal de #appScreen),
      et la grille perd sa bordure/son arrondi latéral pour que chaque case
      fasse exactement 1/7 de la largeur de l'écran */
-  .calendar-main { margin: 0 -20px; }
+  .calendar-main { margin: 0 -5px; }
   .calendar-grid { border-left: none; border-right: none; border-radius: 0; }
 }
