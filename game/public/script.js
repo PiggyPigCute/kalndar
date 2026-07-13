@@ -46,6 +46,7 @@ const notifyOtherDays = document.getElementById('notifyOtherDays');
 const notifyOtherHours = document.getElementById('notifyOtherHours');
 const notifyOtherMinutes = document.getElementById('notifyOtherMinutes');
 const notifyOtherConfirm = document.getElementById('notifyOtherConfirm');
+const notifyClearBtn = document.getElementById('notifyClearBtn');
 const fieldDate = document.getElementById('fieldDate');
 const fieldEndDate = document.getElementById('fieldEndDate');
 const fieldMembers = document.getElementById('fieldMembers');
@@ -1134,6 +1135,8 @@ function renderNotifyOptions() {
   const isOther = selectedNotifyLeadMinutes !== null && !NOTIFY_FIXED_MINUTES.includes(selectedNotifyLeadMinutes);
   notifyOtherBtn.classList.toggle('selected', isOther);
   notifyOtherBtn.textContent = isOther ? `Autre (${formatLeadMinutes(selectedNotifyLeadMinutes)})` : 'Autre';
+
+  notifyClearBtn.classList.toggle('disabled', selectedNotifyLeadMinutes === null);
 }
 
 // demande la permission et s'abonne au push si besoin ; renvoie false si l'utilisateur
@@ -1198,6 +1201,11 @@ notifyOtherConfirm.addEventListener('click', () => {
   const minutes = Number(notifyOtherMinutes.value) || 0;
   closeNotifyOtherPopup();
   selectNotifyLeadMinutes(days * 1440 + hours * 60 + minutes);
+});
+
+notifyClearBtn.addEventListener('click', () => {
+  closeNotifyOtherPopup();
+  selectNotifyLeadMinutes(null);
 });
 
 document.addEventListener('click', (e) => {
