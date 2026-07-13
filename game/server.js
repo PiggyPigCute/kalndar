@@ -428,6 +428,7 @@ function checkUpcomingEvents() {
           ? (leadMinutes > 20 * 60 ? `Demain à ${ev.startTime}` : `à ${ev.startTime}`)
           : 'Toute la journée';
         sendPushToMembers([memberId], {
+          type: 'reminder',
           title: ev.title,
           body,
           eventId: ev.id,

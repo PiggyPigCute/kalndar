@@ -11,7 +11,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: '/icons/icon.svg',
-    badge: '/icons/badge.svg',
+    badge: data.type === 'reminder' ? '/icons/badge-excla.svg' : '/icons/badge.svg',
     data: { date: data.date || null, eventId: data.eventId || null },
   };
   if (data.type === 'invited') {
