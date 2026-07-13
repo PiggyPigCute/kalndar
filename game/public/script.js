@@ -1135,7 +1135,7 @@ function renderNotifyOptions() {
 
   const isOther = selectedNotifyLeadMinutes !== null && !NOTIFY_FIXED_MINUTES.includes(selectedNotifyLeadMinutes);
   notifyOtherBtn.classList.toggle('selected', isOther);
-  notifyOtherBtn.textContent = isOther ? `Autre (${formatLeadMinutes(selectedNotifyLeadMinutes)})` : 'Autre';
+  notifyOtherBtn.textContent = isOther ? `(${formatLeadMinutes(selectedNotifyLeadMinutes)})` : '...';
 
   notifyClearBtn.classList.toggle('disabled', selectedNotifyLeadMinutes === null);
 }
