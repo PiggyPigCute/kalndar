@@ -552,8 +552,10 @@ function renderDayPanel() {
   dayPanelDate.textContent = formatFullDate(selectedDate);
 
   const dayEvents = events.filter(ev => ev.date <= selectedDate && ev.endDate >= selectedDate);
-  const allDayEvents = dayEvents.filter(ev => !ev.startTime);
-  const timedEvents = dayEvents
+  const multiDayEvents = dayEvents.filter(ev => ev.endDate !== ev.date);
+  const singleDayEvents = dayEvents.filter(ev => ev.endDate === ev.date);
+  const allDayEvents = singleDayEvents.filter(ev => !ev.startTime);
+  const timedEvents = singleDayEvents
     .filter(ev => ev.startTime)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -569,6 +571,7 @@ function renderDayPanel() {
 
   renderDayPanelSection('Toute la journée', allDayEvents);
   renderDayPanelSection('Heure précise', timedEvents);
+  renderDayPanelSection('Sur plusieurs jours', multiDayEvents);
 }
 
 dayPanelAddBtn.addEventListener('click', () => openNewModal(selectedDate));
