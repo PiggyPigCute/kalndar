@@ -599,6 +599,96 @@ body {
   gap: 12px;
 }
 
+.title-field {
+  flex: 1;
+}
+
+.icon-picker {
+  position: relative;
+  align-self: flex-end;
+}
+
+.icon-picker-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-picker-btn img {
+  width: 22px;
+  height: 22px;
+  display: none;
+}
+
+.icon-picker-btn.selected img {
+  display: block;
+}
+
+#iconClearBtn {
+  align-self: flex-end;
+}
+
+.icon-picker-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  width: 220px;
+}
+
+.icon-picker-option {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-picker-option img {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-picker-option:hover,
+.icon-picker-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
+}
+
+.event-pill-icon,
+.event-bar-icon,
+.day-panel-item-icon {
+  width: 12px;
+  height: 12px;
+  vertical-align: -1px;
+  margin-right: 3px;
+}
+
+.day-panel-item-icon {
+  width: 15px;
+  height: 15px;
+  vertical-align: -3px;
+}
+
 .notify-row {
   position: relative;
   display: flex;

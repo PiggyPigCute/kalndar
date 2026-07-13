@@ -71,10 +71,19 @@
   <div class="modal">
     <h2 id="modalTitle">Nouvel événement</h2>
     <form id="eventForm">
-      <label>
-        Titre
-        <input type="text" id="fieldTitle" required maxlength="200" placeholder="Nom de l'événement" autocomplete="off">
-      </label>
+      <div class="field-row">
+        <label class="title-field">
+          Titre
+          <input type="text" id="fieldTitle" required maxlength="200" placeholder="Nom de l'événement" autocomplete="off">
+        </label>
+        <div class="icon-picker">
+          <button type="button" class="icon-picker-btn" id="iconPickerBtn" aria-label="Choisir une icône">
+            <img id="iconPickerPreview" alt="">
+          </button>
+          <div class="icon-picker-popup hidden" id="iconPickerPopup"></div>
+        </div>
+        <button type="button" class="notify-clear-btn disabled" id="iconClearBtn" aria-label="Retirer l'icône"></button>
+      </div>
       <div class="notify-row">
         <span class="notify-row-label">Rappel avant l'événement</span>
         <div class="notify-options" id="notifyOptions">

@@ -10,6 +10,8 @@ let currentDate = new Date();
 let selectedDate = todayString();
 let editingEventId = null;
 let selectedNotifyLeadMinutes = null; // délai de rappel choisi pour l'utilisateur courant (null = pas de rappel)
+let eventIconNames = []; // chargée une fois depuis /api/event-icons
+let selectedEventIcon = null;
 
 const identityScreen = document.getElementById('identityScreen');
 const appScreen = document.getElementById('appScreen');
@@ -46,6 +48,10 @@ const notifyOtherHours = document.getElementById('notifyOtherHours');
 const notifyOtherMinutes = document.getElementById('notifyOtherMinutes');
 const notifyOtherConfirm = document.getElementById('notifyOtherConfirm');
 const notifyClearBtn = document.getElementById('notifyClearBtn');
+const iconPickerBtn = document.getElementById('iconPickerBtn');
+const iconPickerPreview = document.getElementById('iconPickerPreview');
+const iconPickerPopup = document.getElementById('iconPickerPopup');
+const iconClearBtn = document.getElementById('iconClearBtn');
 const fieldDate = document.getElementById('fieldDate');
 const fieldEndDate = document.getElementById('fieldEndDate');
 const fieldMembers = document.getElementById('fieldMembers');
@@ -416,7 +422,9 @@ function renderCalendar() {
           if (col > placement.colStart) bar.classList.add('continues-before');
           if (col < placement.colEnd) bar.classList.add('continues-after');
           bar.style.background = memberAccent(visibleMemberIds(placement.ev.memberIds));
-          if (col === placement.colStart) bar.textContent = placement.ev.title;
+          if (col === placement.colStart) {
+            bar.innerHTML = eventIconHtml(placement.ev.icon, 'event-bar-icon') + escapeHtml(placement.ev.title);
+          }
           barsWrap.appendChild(bar);
         }
         cellEl.appendChild(barsWrap);
@@ -427,7 +435,7 @@ function renderCalendar() {
         const pill = document.createElement('div');
         pill.className = 'event-pill';
         pill.style.background = memberAccent(visibleMemberIds(ev.memberIds));
-        pill.textContent = ev.title;
+        pill.innerHTML = eventIconHtml(ev.icon, 'event-pill-icon') + escapeHtml(ev.title);
         cellEl.appendChild(pill);
       });
 
@@ -529,7 +537,7 @@ function buildDayPanelItem(ev) {
   item.innerHTML = `
     ${timeHtml}
     <div class="day-panel-item-body">
-      <div class="day-panel-item-title">${escapeHtml(ev.title)}</div>
+      <div class="day-panel-item-title">${eventIconHtml(ev.icon, 'day-panel-item-icon')}${escapeHtml(ev.title)}</div>
       ${rangeHtml}
       <div class="day-panel-item-member">${memberNamesHtml}</div>
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
@@ -661,6 +669,9 @@ function openNewModal(date) {
   selectedNotifyLeadMinutes = null;
   closeNotifyOtherPopup();
   renderNotifyOptions();
+  selectedEventIcon = null;
+  closeIconPickerPopup();
+  renderIconPickerButton();
   refreshAllPickers();
   formError.classList.add('hidden');
   deleteEventBtn.classList.add('hidden');
@@ -681,6 +692,9 @@ function openEditModal(ev) {
   selectedNotifyLeadMinutes = ownNotify && Number.isInteger(ownNotify.leadMinutes) ? ownNotify.leadMinutes : null;
   closeNotifyOtherPopup();
   renderNotifyOptions();
+  selectedEventIcon = ev.icon || null;
+  closeIconPickerPopup();
+  renderIconPickerButton();
   refreshAllPickers();
   fieldDescription.value = ev.description || '';
   formError.classList.add('hidden');
@@ -739,6 +753,7 @@ eventForm.addEventListener('submit', async (e) => {
     endTime: fieldEndTime.value || null,
     description: fieldDescription.value,
     notifyLeadMinutes: selectedNotifyLeadMinutes,
+    icon: selectedEventIcon,
   };
 
   try {
@@ -1247,6 +1262,75 @@ notifyClearBtn.addEventListener('click', () => {
 
 document.addEventListener('click', (e) => {
   if (!e.target.closest('#notifyOtherPopup, #notifyOtherBtn')) closeNotifyOtherPopup();
+});
+
+// --- Icône d'événement ---
+// affichée en permanence à côté du titre, dans la grille (event-pill/event-bar)
+// et dans le day-panel une fois choisie ; liste chargée une seule fois depuis le serveur
+
+async function loadEventIcons() {
+  if (eventIconNames.length > 0) return;
+  try {
+    eventIconNames = await fetchJSON('/api/event-icons');
+  } catch (err) {
+    console.error('Icônes indisponibles :', err);
+  }
+}
+
+function iconImgSrc(icon) {
+  return `/icons/events/${icon}.svg`;
+}
+
+// balise <img> de l'icône d'un événement (pastille, barre, day-panel), ou rien si aucune choisie
+function eventIconHtml(icon, className) {
+  return icon ? `<img class="${className}" src="${iconImgSrc(icon)}" alt="">` : '';
+}
+
+function closeIconPickerPopup() {
+  iconPickerPopup.classList.add('hidden');
+}
+
+function renderIconPickerButton() {
+  iconPickerBtn.classList.toggle('selected', !!selectedEventIcon);
+  iconPickerPreview.src = selectedEventIcon ? iconImgSrc(selectedEventIcon) : '';
+  iconClearBtn.classList.toggle('disabled', !selectedEventIcon);
+}
+
+function renderIconPickerPopup() {
+  iconPickerPopup.innerHTML = '';
+  eventIconNames.forEach(icon => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-picker-option' + (icon === selectedEventIcon ? ' selected' : '');
+    btn.innerHTML = `<img src="${iconImgSrc(icon)}" alt="${escapeHtml(icon)}">`;
+    btn.addEventListener('click', () => {
+      selectedEventIcon = icon;
+      renderIconPickerButton();
+      closeIconPickerPopup();
+    });
+    iconPickerPopup.appendChild(btn);
+  });
+}
+
+iconPickerBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  if (!iconPickerPopup.classList.contains('hidden')) {
+    closeIconPickerPopup();
+    return;
+  }
+  await loadEventIcons();
+  renderIconPickerPopup();
+  iconPickerPopup.classList.remove('hidden');
+});
+
+iconClearBtn.addEventListener('click', () => {
+  selectedEventIcon = null;
+  renderIconPickerButton();
+  closeIconPickerPopup();
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#iconPickerPopup, #iconPickerBtn')) closeIconPickerPopup();
 });
 
 if ('serviceWorker' in navigator) {

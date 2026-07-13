@@ -29,7 +29,20 @@ const familyPasswordPath = path.join(__dirname, 'data', 'family-password.json');
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
 const validMemberIds = new Set(members.map(m => m.id));
 
-// anciens événements enregistrés avant l'ajout de memberIds[], endDate et notifications{}
+// icônes disponibles pour les événements : un simple fichier .svg dans public/icons/events
+// suffit à en ajouter une, pas besoin de toucher au code
+const eventIconsDir = path.join(__dirname, 'public', 'icons', 'events');
+const eventIconNames = fs.readdirSync(eventIconsDir)
+  .filter(f => f.endsWith('.svg'))
+  .map(f => f.slice(0, -4))
+  .sort();
+const validEventIcons = new Set(eventIconNames);
+
+function isValidEventIcon(icon) {
+  return icon === null || icon === undefined || validEventIcons.has(icon);
+}
+
+// anciens événements enregistrés avant l'ajout de memberIds[], endDate, notifications{} et icon
 function migrateEvent(event) {
   const { memberId, notify, ...rest } = event;
   return {
@@ -37,6 +50,7 @@ function migrateEvent(event) {
     memberIds: Array.isArray(event.memberIds) ? event.memberIds : (memberId ? [memberId] : []),
     endDate: event.endDate || event.date,
     notifications: event.notifications && typeof event.notifications === 'object' ? event.notifications : {},
+    icon: isValidEventIcon(event.icon) ? event.icon || null : null,
   };
 }
 
@@ -276,6 +290,10 @@ app.get('/api/events', requireAuth, (req, res) => {
   res.json(events);
 });
 
+app.get('/api/event-icons', requireAuth, (req, res) => {
+  res.json(eventIconNames);
+});
+
 app.get('/api/push/public-key', requireAuth, (req, res) => {
   res.json({ publicKey: vapidKeys.publicKey });
 });
@@ -337,11 +355,12 @@ function applyOwnNotifyPreference(event, memberId, notifyLeadMinutes) {
 }
 
 app.post('/api/events', requireAuth, (req, res) => {
-  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes, icon } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
   if (!isValidTime(startTime) || !isValidTime(endTime)) return res.status(400).json({ error: 'Heure invalide' });
+  if (!isValidEventIcon(icon)) return res.status(400).json({ error: 'Icône invalide' });
 
   const normalizedEndDate = normalizeEndDate(date, endDate);
   if (!normalizedEndDate) return res.status(400).json({ error: 'Date de fin invalide' });
@@ -358,6 +377,7 @@ app.post('/api/events', requireAuth, (req, res) => {
     endTime: endTime || null,
     description: typeof description === 'string' ? description.trim().slice(0, 2000) : '',
     memberIds: normalizedMemberIds,
+    icon: icon || null,
     notifications: {},
   };
   applyOwnNotifyPreference(event, req.memberId, notifyLeadMinutes);
@@ -384,11 +404,12 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   const event = events.find(e => e.id === req.params.id);
   if (!event) return res.status(404).json({ error: 'Événement introuvable' });
 
-  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes, icon } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
   if (!isValidTime(startTime) || !isValidTime(endTime)) return res.status(400).json({ error: 'Heure invalide' });
+  if (!isValidEventIcon(icon)) return res.status(400).json({ error: 'Icône invalide' });
 
   const normalizedEndDate = normalizeEndDate(date, endDate);
   if (!normalizedEndDate) return res.status(400).json({ error: 'Date de fin invalide' });
@@ -403,6 +424,7 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   event.endTime = endTime || null;
   event.description = typeof description === 'string' ? description.trim().slice(0, 2000) : '';
   event.memberIds = normalizedMemberIds;
+  event.icon = icon || null;
   applyOwnNotifyPreference(event, req.memberId, notifyLeadMinutes);
 
   saveEvents();
