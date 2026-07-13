@@ -178,6 +178,8 @@ function renderIdentityList() {
   });
 }
 
+const LAST_MEMBER_KEY = 'kalndar_last_member';
+
 async function loginAsMember(member) {
   try {
     const loggedIn = await fetchJSON('/api/login', {
@@ -185,6 +187,7 @@ async function loginAsMember(member) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ memberId: member.id }),
     });
+    localStorage.setItem(LAST_MEMBER_KEY, member.id);
     await showApp(loggedIn);
   } catch (err) {
     if (err.status === 401) {
@@ -193,6 +196,19 @@ async function loginAsMember(member) {
     } else {
       alert(err.message);
     }
+  }
+}
+
+// après le mot de passe familial : si on reconnaît le dernier profil utilisé sur
+// cet appareil, on se reconnecte directement avec plutôt que de redemander "qui es-tu"
+function showIdentityPickerOrAutoLogin() {
+  renderIdentityList();
+  const rememberedId = localStorage.getItem(LAST_MEMBER_KEY);
+  const remembered = rememberedId && members.find(m => m.id === rememberedId);
+  if (remembered) {
+    loginAsMember(remembered);
+  } else {
+    showIdentityPicker();
   }
 }
 
@@ -222,8 +238,7 @@ familyLoginForm.addEventListener('submit', async (e) => {
       body: JSON.stringify({ password: familyPassword.value }),
     });
     await loadMembers();
-    renderIdentityList();
-    showIdentityPicker();
+    showIdentityPickerOrAutoLogin();
   } catch (err) {
     familyLoginError.textContent = err.message;
     familyLoginError.classList.remove('hidden');
@@ -238,8 +253,7 @@ async function showIdentityScreen() {
   currentMember = null;
   try {
     await loadMembers();
-    renderIdentityList();
-    showIdentityPicker();
+    showIdentityPickerOrAutoLogin();
   } catch {
     showFamilyGate();
   }
