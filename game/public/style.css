@@ -608,6 +608,7 @@ body {
 }
 
 .notify-row-label {
+  flex-basis: 100%;
   font-size: 0.85rem;
   color: var(--text-muted);
 }
