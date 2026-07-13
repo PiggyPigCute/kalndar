@@ -414,9 +414,12 @@ function renderCalendar() {
 
   calendarGrid.innerHTML = '';
   const MAX_VISIBLE = 3;
+  const LANE_HEIGHT = 18; // hauteur d'une barre + interligne
+  const BAR_TOP_OFFSET = 26; // aligné sous le numéro du jour (padding de la case + hauteur du chiffre)
 
   for (let rowStart = 0; rowStart < cells.length; rowStart += 7) {
     const rowCells = cells.slice(rowStart, rowStart + 7);
+    const rowIndex = rowStart / 7;
     const rowFirstDate = rowCells[0].date;
     const rowLastDate = rowCells[6].date;
 
@@ -436,7 +439,11 @@ function renderCalendar() {
         } else {
           laneLastCol[lane] = colEnd;
         }
-        placements.push({ ev, colStart, colEnd, lane });
+        placements.push({
+          ev, colStart, colEnd, lane,
+          trueStart: ev.date >= rowFirstDate, // l'événement démarre réellement dans cette ligne (pas avant)
+          trueEnd: ev.endDate <= rowLastDate, // l'événement se termine réellement dans cette ligne (pas après)
+        });
       });
 
     rowCells.forEach((cell, col) => {
@@ -450,6 +457,8 @@ function renderCalendar() {
         + (cell.date === selectedDate ? ' selected' : '')
         + (isWeekend ? ' weekend' : '')
         + (holidayName ? ' holiday' : '');
+      cellEl.style.gridColumn = String(col + 1);
+      cellEl.style.gridRow = String(rowIndex + 1);
 
       const numberEl = document.createElement('div');
       numberEl.className = 'day-number';
@@ -468,28 +477,14 @@ function renderCalendar() {
       }
       cellEl.appendChild(numberEl);
 
+      // réserve la place des barres multi-jours (rendues séparément en overlay sur la
+      // grille, voir plus bas) pour que les pastilles mono-jour démarrent toujours au
+      // même niveau sur toute la ligne, que cette case ait une barre ou non
       if (laneLastCol.length > 0) {
-        const barsWrap = document.createElement('div');
-        barsWrap.className = 'event-bars';
-        for (let lane = 0; lane < laneLastCol.length; lane++) {
-          const placement = placements.find(p => p.lane === lane && col >= p.colStart && col <= p.colEnd);
-          if (!placement) {
-            const spacer = document.createElement('div');
-            spacer.className = 'event-bar-spacer';
-            barsWrap.appendChild(spacer);
-            continue;
-          }
-          const bar = document.createElement('div');
-          bar.className = 'event-bar';
-          if (col > placement.colStart) bar.classList.add('continues-before');
-          if (col < placement.colEnd) bar.classList.add('continues-after');
-          bar.style.background = memberAccent(visibleMemberIds(placement.ev.memberIds));
-          if (col === placement.colStart) {
-            bar.innerHTML = eventIconHtml(placement.ev.icon, 'event-bar-icon') + escapeHtml(placement.ev.title);
-          }
-          barsWrap.appendChild(bar);
-        }
-        cellEl.appendChild(barsWrap);
+        const spacer = document.createElement('div');
+        spacer.className = 'event-bars-spacer';
+        spacer.style.height = `${laneLastCol.length * LANE_HEIGHT}px`;
+        cellEl.appendChild(spacer);
       }
 
       const dayEvents = singleDayEventsByDate.get(cell.date) || [];
@@ -510,6 +505,27 @@ function renderCalendar() {
 
       cellEl.addEventListener('click', () => selectDate(cell.date));
       calendarGrid.appendChild(cellEl);
+    });
+
+    // barres multi-jours : un seul élément par événement et par ligne (en overlay sur la
+    // grille, via grid-column en span), au lieu d'un segment par case — le dégradé reste
+    // continu sur toute la largeur et le titre peut s'étaler sur plusieurs cases avant
+    // d'être tronqué
+    placements.forEach(({ ev, colStart, colEnd, lane, trueStart, trueEnd }) => {
+      const bar = document.createElement('div');
+      bar.className = 'event-bar' + (trueStart ? ' event-start' : '') + (trueEnd ? ' event-end' : '');
+      bar.style.gridColumn = `${colStart + 1} / ${colEnd + 2}`;
+      bar.style.gridRow = String(rowIndex + 1);
+      bar.style.marginTop = `${BAR_TOP_OFFSET + lane * LANE_HEIGHT}px`;
+      bar.style.background = memberAccent(visibleMemberIds(ev.memberIds));
+      bar.innerHTML = eventIconHtml(ev.icon, 'event-bar-icon') + escapeHtml(ev.title);
+      bar.addEventListener('click', (e) => {
+        const rect = bar.getBoundingClientRect();
+        const span = colEnd - colStart + 1;
+        const colWithinSpan = Math.min(span - 1, Math.max(0, Math.floor((e.clientX - rect.left) / rect.width * span)));
+        selectDate(addDays(rowFirstDate, colStart + colWithinSpan));
+      });
+      calendarGrid.appendChild(bar);
     });
   }
 }
