@@ -422,9 +422,14 @@ function checkUpcomingEvents() {
       const notifyAt = new Date(start.getTime() - leadMinutes * 60000);
       if (now >= notifyAt && now < start) {
         notifiedEvents.add(key);
+        // un rappel envoyé plus de 20h à l'avance (ex. le bouton 24h) précise "Demain à"
+        // plutôt que juste l'heure, sinon on ne sait pas à quel jour elle se rapporte
+        const body = ev.startTime
+          ? (leadMinutes > 20 * 60 ? `Demain à ${ev.startTime}` : `à ${ev.startTime}`)
+          : 'Toute la journée';
         sendPushToMembers([memberId], {
           title: ev.title,
-          body: ev.startTime ? `à ${ev.startTime}` : 'Toute la journée',
+          body,
           eventId: ev.id,
           date: ev.date,
         });
