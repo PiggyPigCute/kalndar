@@ -412,7 +412,7 @@ function renderCalendar() {
         const pill = document.createElement('div');
         pill.className = 'event-pill';
         pill.style.background = memberAccent(visibleMemberIds(ev.memberIds));
-        pill.textContent = ev.startTime ? `${ev.startTime} ${ev.title}` : ev.title;
+        pill.textContent = ev.title;
         cellEl.appendChild(pill);
       });
 
