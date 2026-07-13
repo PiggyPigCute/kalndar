@@ -12,7 +12,7 @@ let editingEventId = null;
 let selectedNotifyLeadMinutes = null; // délai de rappel choisi pour l'utilisateur courant (null = pas de rappel)
 let eventIconNames = []; // chargée une fois depuis /api/event-icons
 let selectedEventIcon = null;
-
+ 
 const identityScreen = document.getElementById('identityScreen');
 const appScreen = document.getElementById('appScreen');
 const familyGate = document.getElementById('familyGate');
@@ -68,6 +68,56 @@ function formatDate(year, month, day) { return `${year}-${pad(month + 1)}-${pad(
 function todayString() {
   const now = new Date();
   return formatDate(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// dimanche de Pâques (algorithme de Meeus/Jones/Butcher)
+function computeEasterSunday(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+const frenchHolidaysCache = new Map();
+
+// jours fériés français (métropole) pour une année donnée, en cache pour éviter de recalculer Pâques
+function getFrenchHolidays(year) {
+  if (frenchHolidaysCache.has(year)) return frenchHolidaysCache.get(year);
+
+  const dates = new Set([
+    formatDate(year, 0, 1),   // 1er janvier
+    formatDate(year, 4, 1),   // 1er mai
+    formatDate(year, 4, 8),   // 8 mai
+    formatDate(year, 6, 14),  // 14 juillet
+    formatDate(year, 7, 15),  // 15 août
+    formatDate(year, 10, 1),  // 1er novembre
+    formatDate(year, 10, 11), // 11 novembre
+    formatDate(year, 11, 25), // 25 décembre
+  ]);
+
+  const easter = computeEasterSunday(year);
+  const addFromEaster = (offsetDays) => {
+    const d = new Date(easter);
+    d.setDate(d.getDate() + offsetDays);
+    dates.add(formatDate(d.getFullYear(), d.getMonth(), d.getDate()));
+  };
+  addFromEaster(1);  // lundi de Pâques
+  addFromEaster(39); // jeudi de l'Ascension
+  addFromEaster(50); // lundi de Pentecôte
+
+  frenchHolidaysCache.set(year, dates);
+  return dates;
 }
 
 // jj/mm/aaaa (affichage) <-> aaaa-mm-jj (valeur native, utilisée partout ailleurs dans le code)
@@ -389,11 +439,16 @@ function renderCalendar() {
       });
 
     rowCells.forEach((cell, col) => {
+      const isWeekend = col === 5 || col === 6; // Sam, Dim (voir WEEKDAY_LABELS)
+      const isHoliday = getFrenchHolidays(Number(cell.date.slice(0, 4))).has(cell.date);
+
       const cellEl = document.createElement('div');
       cellEl.className = 'day-cell'
         + (cell.outside ? ' outside' : '')
         + (cell.date === today ? ' today' : '')
-        + (cell.date === selectedDate ? ' selected' : '');
+        + (cell.date === selectedDate ? ' selected' : '')
+        + (isWeekend ? ' weekend' : '')
+        + (isHoliday ? ' holiday' : '');
 
       const numberEl = document.createElement('div');
       numberEl.className = 'day-number';
