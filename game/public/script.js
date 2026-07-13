@@ -91,33 +91,34 @@ function computeEasterSunday(year) {
 
 const frenchHolidaysCache = new Map();
 
-// jours fériés français (métropole) pour une année donnée, en cache pour éviter de recalculer Pâques
+// jours fériés français (métropole) pour une année donnée : date -> nom, en cache
+// pour éviter de recalculer Pâques à chaque rendu
 function getFrenchHolidays(year) {
   if (frenchHolidaysCache.has(year)) return frenchHolidaysCache.get(year);
 
-  const dates = new Set([
-    formatDate(year, 0, 1),   // 1er janvier
-    formatDate(year, 4, 1),   // 1er mai
-    formatDate(year, 4, 8),   // 8 mai
-    formatDate(year, 6, 14),  // 14 juillet
-    formatDate(year, 7, 15),  // 15 août
-    formatDate(year, 10, 1),  // 1er novembre
-    formatDate(year, 10, 11), // 11 novembre
-    formatDate(year, 11, 25), // 25 décembre
+  const holidays = new Map([
+    [formatDate(year, 0, 1), 'Jour de l\'an'],
+    [formatDate(year, 4, 1), 'Fête du Travail'],
+    [formatDate(year, 4, 8), 'Victoire 1945'],
+    [formatDate(year, 6, 14), 'Fête nationale'],
+    [formatDate(year, 7, 15), 'Assomption'],
+    [formatDate(year, 10, 1), 'Toussaint'],
+    [formatDate(year, 10, 11), 'Armistice 1918'],
+    [formatDate(year, 11, 25), 'Noël'],
   ]);
 
   const easter = computeEasterSunday(year);
-  const addFromEaster = (offsetDays) => {
+  const addFromEaster = (offsetDays, name) => {
     const d = new Date(easter);
     d.setDate(d.getDate() + offsetDays);
-    dates.add(formatDate(d.getFullYear(), d.getMonth(), d.getDate()));
+    holidays.set(formatDate(d.getFullYear(), d.getMonth(), d.getDate()), name);
   };
-  addFromEaster(1);  // lundi de Pâques
-  addFromEaster(39); // jeudi de l'Ascension
-  addFromEaster(50); // lundi de Pentecôte
+  addFromEaster(1, 'Lundi de Pâques');
+  addFromEaster(39, 'Jeudi de l\'Ascension');
+  addFromEaster(50, 'Lundi de Pentecôte');
 
-  frenchHolidaysCache.set(year, dates);
-  return dates;
+  frenchHolidaysCache.set(year, holidays);
+  return holidays;
 }
 
 // jj/mm/aaaa (affichage) <-> aaaa-mm-jj (valeur native, utilisée partout ailleurs dans le code)
@@ -440,7 +441,7 @@ function renderCalendar() {
 
     rowCells.forEach((cell, col) => {
       const isWeekend = col === 5 || col === 6; // Sam, Dim (voir WEEKDAY_LABELS)
-      const isHoliday = getFrenchHolidays(Number(cell.date.slice(0, 4))).has(cell.date);
+      const holidayName = getFrenchHolidays(Number(cell.date.slice(0, 4))).get(cell.date);
 
       const cellEl = document.createElement('div');
       cellEl.className = 'day-cell'
@@ -448,12 +449,18 @@ function renderCalendar() {
         + (cell.date === today ? ' today' : '')
         + (cell.date === selectedDate ? ' selected' : '')
         + (isWeekend ? ' weekend' : '')
-        + (isHoliday ? ' holiday' : '');
+        + (holidayName ? ' holiday' : '');
 
       const numberEl = document.createElement('div');
       numberEl.className = 'day-number';
       numberEl.textContent = cell.day;
-      if (cell.date === today) {
+      if (holidayName) {
+        // le nom du jour férié prime sur "Aujourd'hui" si les deux coïncident
+        const holidayLabel = document.createElement('span');
+        holidayLabel.className = 'holiday-label';
+        holidayLabel.textContent = ` · ${holidayName}`;
+        numberEl.appendChild(holidayLabel);
+      } else if (cell.date === today) {
         const todayLabel = document.createElement('span');
         todayLabel.className = 'today-label';
         todayLabel.textContent = ' · Aujourd\'hui';
@@ -612,7 +619,8 @@ function renderDayPanelSection(title, dayEvents) {
 }
 
 function renderDayPanel() {
-  dayPanelDate.textContent = formatFullDate(selectedDate);
+  const holidayName = getFrenchHolidays(Number(selectedDate.slice(0, 4))).get(selectedDate);
+  dayPanelDate.textContent = formatFullDate(selectedDate) + (holidayName ? ` · ${holidayName}` : '');
 
   const dayEvents = events.filter(ev => ev.date <= selectedDate && ev.endDate >= selectedDate);
   const multiDayEvents = dayEvents.filter(ev => ev.endDate !== ev.date);
