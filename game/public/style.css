@@ -614,7 +614,7 @@ body {
   flex-shrink: 0;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: #f2f2f2;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -638,7 +638,7 @@ body {
 .icon-picker-popup {
   position: absolute;
   top: calc(100% + 4px);
-  left: 0;
+  right: 0;
   z-index: 20;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -656,7 +656,7 @@ body {
   height: 36px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: #f2f2f2;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -671,7 +671,7 @@ body {
 .icon-picker-option:hover,
 .icon-picker-option.selected {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
+  background: color-mix(in srgb, var(--accent) 16%, #f2f2f2);
 }
 
 .event-pill-icon,
