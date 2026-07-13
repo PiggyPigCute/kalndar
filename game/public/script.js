@@ -103,7 +103,7 @@ function getFrenchHolidays(year) {
     [formatDate(year, 6, 14), 'Fête nationale'],
     [formatDate(year, 7, 15), 'Assomption'],
     [formatDate(year, 10, 1), 'Toussaint'],
-    [formatDate(year, 10, 11), 'Armistice 1918'],
+    [formatDate(year, 10, 11), 'Armistice'],
     [formatDate(year, 11, 25), 'Noël'],
   ]);
 
@@ -113,9 +113,9 @@ function getFrenchHolidays(year) {
     d.setDate(d.getDate() + offsetDays);
     holidays.set(formatDate(d.getFullYear(), d.getMonth(), d.getDate()), name);
   };
-  addFromEaster(1, 'Lundi de Pâques');
-  addFromEaster(39, 'Jeudi de l\'Ascension');
-  addFromEaster(50, 'Lundi de Pentecôte');
+  addFromEaster(1, 'Pâques');
+  addFromEaster(39, 'Ascension');
+  addFromEaster(50, 'Pentecôte');
 
   frenchHolidaysCache.set(year, holidays);
   return holidays;
