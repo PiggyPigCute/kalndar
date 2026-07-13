@@ -10,6 +10,7 @@ let loginMemberId = null;
 let currentDate = new Date();
 let selectedDate = todayString();
 let editingEventId = null;
+let selectedNotifyLeadMinutes = null; // délai de rappel choisi pour l'utilisateur courant (null = pas de rappel)
 
 const identityScreen = document.getElementById('identityScreen');
 const appScreen = document.getElementById('appScreen');
@@ -38,7 +39,13 @@ const modalOverlay = document.getElementById('eventModalOverlay');
 const modalTitle = document.getElementById('modalTitle');
 const eventForm = document.getElementById('eventForm');
 const fieldTitle = document.getElementById('fieldTitle');
-const fieldNotify = document.getElementById('fieldNotify');
+const notifyOptions = document.getElementById('notifyOptions');
+const notifyOtherBtn = document.getElementById('notifyOtherBtn');
+const notifyOtherPopup = document.getElementById('notifyOtherPopup');
+const notifyOtherDays = document.getElementById('notifyOtherDays');
+const notifyOtherHours = document.getElementById('notifyOtherHours');
+const notifyOtherMinutes = document.getElementById('notifyOtherMinutes');
+const notifyOtherConfirm = document.getElementById('notifyOtherConfirm');
 const fieldDate = document.getElementById('fieldDate');
 const fieldEndDate = document.getElementById('fieldEndDate');
 const fieldMembers = document.getElementById('fieldMembers');
@@ -610,7 +617,9 @@ function openNewModal(date) {
   renderMemberCheckboxes(currentMember ? [currentMember.id] : []);
   fieldDate.value = date;
   fieldEndDate.value = date;
-  fieldNotify.checked = true;
+  selectedNotifyLeadMinutes = null;
+  closeNotifyOtherPopup();
+  renderNotifyOptions();
   refreshAllPickers();
   formError.classList.add('hidden');
   deleteEventBtn.classList.add('hidden');
@@ -627,7 +636,10 @@ function openEditModal(ev) {
   fieldEndDate.value = ev.endDate || ev.date;
   fieldStartTime.value = ev.startTime || '';
   fieldEndTime.value = ev.endTime || '';
-  fieldNotify.checked = !!ev.notify;
+  const ownNotify = ev.notifications && currentMember && ev.notifications[currentMember.id];
+  selectedNotifyLeadMinutes = ownNotify && Number.isInteger(ownNotify.leadMinutes) ? ownNotify.leadMinutes : null;
+  closeNotifyOtherPopup();
+  renderNotifyOptions();
   refreshAllPickers();
   fieldDescription.value = ev.description || '';
   formError.classList.add('hidden');
@@ -685,7 +697,7 @@ eventForm.addEventListener('submit', async (e) => {
     startTime: fieldStartTime.value || null,
     endTime: fieldEndTime.value || null,
     description: fieldDescription.value,
-    notify: fieldNotify.checked,
+    notifyLeadMinutes: selectedNotifyLeadMinutes,
   };
 
   try {
@@ -1093,37 +1105,103 @@ async function subscribeToPush() {
   });
 }
 
-// la première fois qu'on coche "Notifier" sur un événement, on demande l'autorisation
-// du navigateur et on s'abonne au push directement ici, plutôt que via un bouton séparé
-fieldNotify.addEventListener('change', async () => {
-  if (!fieldNotify.checked) return;
+// Sélecteur de rappel (24h / 1h / ¼h / Autre) : fonctionne comme des radio-boutons,
+// avec bascule à off si on clique sur celui déjà sélectionné. Le rappel est personnel
+// à l'utilisateur connecté (chaque membre choisit le sien indépendamment des autres).
 
+const NOTIFY_FIXED_MINUTES = [1440, 60, 15];
+
+function formatLeadMinutes(totalMinutes) {
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+  if (days) parts.push(`${days}j`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}min`);
+  return parts.length ? parts.join(' ') : '0min';
+}
+
+function closeNotifyOtherPopup() {
+  notifyOtherPopup.classList.add('hidden');
+}
+
+function renderNotifyOptions() {
+  notifyOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn => {
+    btn.classList.toggle('selected', Number(btn.dataset.minutes) === selectedNotifyLeadMinutes);
+  });
+
+  const isOther = selectedNotifyLeadMinutes !== null && !NOTIFY_FIXED_MINUTES.includes(selectedNotifyLeadMinutes);
+  notifyOtherBtn.classList.toggle('selected', isOther);
+  notifyOtherBtn.textContent = isOther ? `Autre (${formatLeadMinutes(selectedNotifyLeadMinutes)})` : 'Autre';
+}
+
+// demande la permission et s'abonne au push si besoin ; renvoie false si l'utilisateur
+// refuse ou que ce n'est pas possible, pour annuler la sélection du rappel dans ce cas
+async function ensureNotifyPermission() {
   if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-    fieldNotify.checked = false;
     alert('Les notifications ne sont pas prises en charge sur ce navigateur.');
-    return;
+    return false;
   }
   if (Notification.permission === 'denied') {
-    fieldNotify.checked = false;
     alert('Les notifications sont bloquées pour ce site dans les réglages du navigateur.');
-    return;
+    return false;
   }
-
   try {
     if (Notification.permission !== 'granted') {
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        fieldNotify.checked = false;
-        return;
-      }
+      if (permission !== 'granted') return false;
     }
     const registration = await getServiceWorkerRegistration();
     const existing = registration && await registration.pushManager.getSubscription();
     if (!existing) await subscribeToPush();
+    return true;
   } catch (err) {
     console.error('Notifications push :', err);
-    fieldNotify.checked = false;
+    return false;
   }
+}
+
+async function selectNotifyLeadMinutes(minutes) {
+  if (minutes !== null && !(await ensureNotifyPermission())) {
+    renderNotifyOptions();
+    return;
+  }
+  selectedNotifyLeadMinutes = minutes;
+  renderNotifyOptions();
+}
+
+notifyOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    closeNotifyOtherPopup();
+    const minutes = Number(btn.dataset.minutes);
+    selectNotifyLeadMinutes(selectedNotifyLeadMinutes === minutes ? null : minutes);
+  });
+});
+
+notifyOtherBtn.addEventListener('click', () => {
+  const isOther = selectedNotifyLeadMinutes !== null && !NOTIFY_FIXED_MINUTES.includes(selectedNotifyLeadMinutes);
+  if (isOther) {
+    selectNotifyLeadMinutes(null);
+    return;
+  }
+  const base = selectedNotifyLeadMinutes || 0;
+  notifyOtherDays.value = Math.floor(base / 1440);
+  notifyOtherHours.value = Math.floor((base % 1440) / 60);
+  notifyOtherMinutes.value = base % 60;
+  notifyOtherPopup.classList.remove('hidden');
+});
+
+notifyOtherConfirm.addEventListener('click', () => {
+  const days = Number(notifyOtherDays.value) || 0;
+  const hours = Number(notifyOtherHours.value) || 0;
+  const minutes = Number(notifyOtherMinutes.value) || 0;
+  closeNotifyOtherPopup();
+  selectNotifyLeadMinutes(days * 1440 + hours * 60 + minutes);
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#notifyOtherPopup, #notifyOtherBtn')) closeNotifyOtherPopup();
 });
 
 if ('serviceWorker' in navigator) {

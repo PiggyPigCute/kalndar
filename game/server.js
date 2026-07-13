@@ -23,14 +23,14 @@ const pushSubscriptionsPath = path.join(__dirname, 'data', 'push-subscriptions.j
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
 const validMemberIds = new Set(members.map(m => m.id));
 
-// anciens événements enregistrés avant l'ajout de memberIds[], endDate et notify
+// anciens événements enregistrés avant l'ajout de memberIds[], endDate et notifications{}
 function migrateEvent(event) {
-  const { memberId, ...rest } = event;
+  const { memberId, notify, ...rest } = event;
   return {
     ...rest,
     memberIds: Array.isArray(event.memberIds) ? event.memberIds : (memberId ? [memberId] : []),
     endDate: event.endDate || event.date,
-    notify: event.notify === true,
+    notifications: event.notifications && typeof event.notifications === 'object' ? event.notifications : {},
   };
 }
 
@@ -257,8 +257,25 @@ function normalizeEndDate(date, endDate) {
   return endDate;
 }
 
+const MAX_NOTIFY_LEAD_MINUTES = 30 * 24 * 60; // 30 jours
+
+function isValidNotifyLeadMinutes(value) {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_NOTIFY_LEAD_MINUTES;
+}
+
+// le rappel est personnel : seule l'entrée de l'auteur de la requête (req.memberId)
+// est créée/modifiée/supprimée dans event.notifications, jamais celle des autres membres
+function applyOwnNotifyPreference(event, memberId, notifyLeadMinutes) {
+  if (!event.notifications || typeof event.notifications !== 'object') event.notifications = {};
+  if (isValidNotifyLeadMinutes(notifyLeadMinutes)) {
+    event.notifications[memberId] = { leadMinutes: notifyLeadMinutes };
+  } else {
+    delete event.notifications[memberId];
+  }
+}
+
 app.post('/api/events', requireAuth, (req, res) => {
-  const { title, date, endDate, startTime, endTime, description, memberIds, notify } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
@@ -279,8 +296,9 @@ app.post('/api/events', requireAuth, (req, res) => {
     endTime: endTime || null,
     description: typeof description === 'string' ? description.trim().slice(0, 2000) : '',
     memberIds: normalizedMemberIds,
-    notify: notify === true,
+    notifications: {},
   };
+  applyOwnNotifyPreference(event, req.memberId, notifyLeadMinutes);
 
   events.push(event);
   saveEvents();
@@ -302,7 +320,7 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   const event = events.find(e => e.id === req.params.id);
   if (!event) return res.status(404).json({ error: 'Événement introuvable' });
 
-  const { title, date, endDate, startTime, endTime, description, memberIds, notify } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
@@ -321,7 +339,7 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   event.endTime = endTime || null;
   event.description = typeof description === 'string' ? description.trim().slice(0, 2000) : '';
   event.memberIds = normalizedMemberIds;
-  event.notify = notify === true;
+  applyOwnNotifyPreference(event, req.memberId, notifyLeadMinutes);
 
   saveEvents();
   io.emit('events:changed');
@@ -340,22 +358,19 @@ app.delete('/api/events/:id', requireAuth, (req, res) => {
 
 // --- Notifications push ---
 
-const LEAD_MINUTES = 30; // rappel avant un événement à heure précise
-const MORNING_HOUR = 8; // heure du rappel le jour même pour un événement "toute la journée"
-
-// en mémoire seulement : évite de renotifier deux fois le même événement tant
-// que le serveur tourne (une redémarrage peut donc, au pire, renvoyer un rappel)
+// en mémoire seulement : évite de renotifier deux fois le même (événement, membre) tant
+// que le serveur tourne (un redémarrage peut donc, au pire, renvoyer un rappel)
 const notifiedEvents = new Set();
 
-function todayISO() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-function eventStartDate(ev) {
+// un événement "toute la journée" est considéré comme démarrant à minuit ce jour-là,
+// ce qui permet d'utiliser la même formule (début - délai choisi) dans les deux cas
+function eventStartMoment(ev) {
   const [y, m, d] = ev.date.split('-').map(Number);
-  const [h, min] = ev.startTime.split(':').map(Number);
-  return new Date(y, m - 1, d, h, min);
+  if (ev.startTime) {
+    const [h, min] = ev.startTime.split(':').map(Number);
+    return new Date(y, m - 1, d, h, min);
+  }
+  return new Date(y, m - 1, d, 0, 0);
 }
 
 async function sendPushToMembers(memberIds, payload) {
@@ -378,35 +393,29 @@ async function sendPushToMembers(memberIds, payload) {
 
 function checkUpcomingEvents() {
   const now = new Date();
-  const todayStr = todayISO();
 
   events.forEach(ev => {
-    if (!ev.notify) return;
-    if (ev.startTime) {
-      const key = `${ev.id}:timed`;
+    const notifications = ev.notifications;
+    if (!notifications) return;
+    const start = eventStartMoment(ev);
+
+    Object.entries(notifications).forEach(([memberId, config]) => {
+      const leadMinutes = config && config.leadMinutes;
+      if (!isValidNotifyLeadMinutes(leadMinutes)) return;
+
+      const key = `${ev.id}:${memberId}`;
       if (notifiedEvents.has(key)) return;
-      const start = eventStartDate(ev);
-      const notifyAt = new Date(start.getTime() - LEAD_MINUTES * 60000);
+
+      const notifyAt = new Date(start.getTime() - leadMinutes * 60000);
       if (now >= notifyAt && now < start) {
         notifiedEvents.add(key);
-        sendPushToMembers(ev.memberIds, {
+        sendPushToMembers([memberId], {
           title: ev.title,
-          body: `à ${ev.startTime}${ev.description ? ' — ' + ev.description : ''}`,
+          body: ev.startTime ? `à ${ev.startTime}` : 'Toute la journée',
           url: '/',
         });
       }
-    } else if (ev.date === todayStr) {
-      const key = `${ev.id}:allday:${todayStr}`;
-      if (notifiedEvents.has(key)) return;
-      if (now.getHours() >= MORNING_HOUR) {
-        notifiedEvents.add(key);
-        sendPushToMembers(ev.memberIds, {
-          title: ev.title,
-          body: ev.endDate !== ev.date ? 'Toute la journée (sur plusieurs jours)' : 'Toute la journée',
-          url: '/',
-        });
-      }
-    }
+    });
   });
 }
 
