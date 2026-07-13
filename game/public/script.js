@@ -477,13 +477,17 @@ function renderCalendar() {
       }
       cellEl.appendChild(numberEl);
 
-      // réserve la place des barres multi-jours (rendues séparément en overlay sur la
-      // grille, voir plus bas) pour que les pastilles mono-jour démarrent toujours au
-      // même niveau sur toute la ligne, que cette case ait une barre ou non
-      if (laneLastCol.length > 0) {
+      // réserve la place des barres multi-jours qui couvrent réellement cette case
+      // (rendues séparément en overlay sur la grille, voir plus bas) ; une case que
+      // rien ne traverse ne doit pas être décalée par une barre ailleurs sur la ligne
+      const coveringLanes = placements
+        .filter(p => col >= p.colStart && col <= p.colEnd)
+        .map(p => p.lane);
+      if (coveringLanes.length > 0) {
+        const laneCount = Math.max(...coveringLanes) + 1;
         const spacer = document.createElement('div');
         spacer.className = 'event-bars-spacer';
-        spacer.style.height = `${laneLastCol.length * LANE_HEIGHT}px`;
+        spacer.style.height = `${laneCount * LANE_HEIGHT}px`;
         cellEl.appendChild(spacer);
       }
 
