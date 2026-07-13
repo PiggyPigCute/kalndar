@@ -263,6 +263,7 @@ async function showApp(member) {
   currentMember = member;
   identityScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
+  if (members.length === 0) await loadMembers();
   renderMemberFilters();
   await loadEvents();
   renderCalendar();
