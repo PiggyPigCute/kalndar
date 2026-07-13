@@ -1,3 +1,8 @@
+// force le fuseau horaire de la famille, quelle que soit la config du serveur :
+// sans ça, `new Date(y, m, d, h, min)` interprète l'heure saisie dans le fuseau
+// du serveur (souvent UTC sur un VPS), décalant tous les calculs de rappel
+process.env.TZ = 'Europe/Paris';
+
 const express = require('express');
 const http = require('http');
 const fs = require('fs');
