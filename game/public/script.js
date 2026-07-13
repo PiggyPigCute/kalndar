@@ -232,6 +232,7 @@ async function showApp(member) {
   await loadEvents();
   renderCalendar();
   renderDayPanel();
+  applyNotificationActionFromURL();
 }
 
 // filtre d'affichage : coché = visible dans la grille du calendrier (tout le monde par défaut) ;
@@ -1214,6 +1215,30 @@ document.addEventListener('click', (e) => {
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service worker :', err));
+  // l'app était déjà ouverte : le service worker nous passe l'action directement (pas de rechargement)
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'notification-action') handleNotificationAction(e.data);
+  });
+}
+
+// clic sur "Ouvrir"/"Éditer" (ou le corps) d'une notif alors qu'aucune fenêtre n'était
+// ouverte : le service worker a dû faire un openWindow avec ces paramètres dans l'URL
+function applyNotificationActionFromURL() {
+  const params = new URLSearchParams(location.search);
+  const date = params.get('date');
+  const eventId = params.get('event');
+  const edit = params.get('edit') === '1';
+  if (!date && !eventId) return;
+  history.replaceState({}, '', location.pathname); // évite de rejouer l'action à un futur rechargement
+  handleNotificationAction({ date, eventId, edit });
+}
+
+function handleNotificationAction({ date, eventId, edit }) {
+  if (date) selectDate(date);
+  if (edit && eventId) {
+    const ev = events.find(e => e.id === eventId);
+    if (ev) openEditModal(ev);
+  }
 }
 
 

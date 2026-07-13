@@ -113,6 +113,12 @@ function isValidTime(str) {
   return str == null || str === '' || /^\d{2}:\d{2}$/.test(str);
 }
 
+function formatEventDateTime(ev) {
+  const [y, m, d] = ev.date.split('-').map(Number);
+  const dateStr = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  return ev.startTime ? `${dateStr} à ${ev.startTime}` : dateStr;
+}
+
 function memberById(id) {
   return members.find(m => m.id === id);
 }
@@ -314,9 +320,11 @@ app.post('/api/events', requireAuth, (req, res) => {
   const otherMemberIds = event.memberIds.filter(id => id !== req.memberId);
   if (otherMemberIds.length > 0) {
     sendPushToMembers(otherMemberIds, {
+      type: 'invited',
       title: `${creator.name} t'a ajouté à un événement`,
-      body: event.title,
-      url: '/',
+      body: `${event.title} — ${formatEventDateTime(event)}`,
+      eventId: event.id,
+      date: event.date,
     });
   }
 });
@@ -417,7 +425,8 @@ function checkUpcomingEvents() {
         sendPushToMembers([memberId], {
           title: ev.title,
           body: ev.startTime ? `à ${ev.startTime}` : 'Toute la journée',
-          url: '/',
+          eventId: ev.id,
+          date: ev.date,
         });
       }
     });
