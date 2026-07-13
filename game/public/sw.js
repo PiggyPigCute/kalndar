@@ -15,9 +15,10 @@ self.addEventListener('push', (event) => {
     data: { date: data.date || null, eventId: data.eventId || null },
   };
   if (data.type === 'invited') {
+    // la plupart des navigateurs mobiles n'affichent que 2 actions max sur une
+    // notif : on garde "Éditer", le clic sur le corps de la notif fait déjà "Ouvrir"
     options.actions = [
       { action: 'read', title: 'Lu' },
-      { action: 'open', title: 'Ouvrir' },
       { action: 'edit', title: 'Éditer' },
     ];
   }
