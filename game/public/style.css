@@ -1030,7 +1030,8 @@ body {
   .day-number { margin: 1px 3px; }
   .event-pill { padding: 0px 1px; }
   .event-pill-icon { margin-right: 1px; }
-  .event-bar.event-start { margin-right: 1px; }
+  .event-bar.event-start { margin-left: 1px; }
+  .event-bar.event-end { margin-right: 1px; }
 
   .toolbar { justify-content: center; }
   .month-label { order: -1; width: 100%; }
