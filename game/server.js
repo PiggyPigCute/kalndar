@@ -24,6 +24,7 @@ const eventsPath = path.join(__dirname, 'data', 'events.json');
 const sessionSecretPath = path.join(__dirname, 'data', 'session-secret');
 const vapidKeysPath = path.join(__dirname, 'data', 'vapid-keys.json');
 const pushSubscriptionsPath = path.join(__dirname, 'data', 'push-subscriptions.json');
+const familyPasswordPath = path.join(__dirname, 'data', 'family-password.json');
 
 const members = JSON.parse(fs.readFileSync(membersPath, 'utf8'));
 const validMemberIds = new Set(members.map(m => m.id));
@@ -95,6 +96,17 @@ function savePushSubscriptions() {
   fs.writeFileSync(pushSubscriptionsPath, JSON.stringify(pushSubscriptions, null, 2));
 }
 
+// { "hash": "saltHex:hashHex" }, généré à la main via scripts/hash-password.js ;
+// null tant qu'il n'a pas été renseigné (personne ne peut se connecter dans ce cas)
+function loadFamilyPasswordHash() {
+  try {
+    const data = JSON.parse(fs.readFileSync(familyPasswordPath, 'utf8'));
+    return typeof data.hash === 'string' ? data.hash : null;
+  } catch {
+    return null;
+  }
+}
+
 // { [memberId]: [ { endpoint, keys: { p256dh, auth } }, ... ] } — plusieurs appareils par membre
 let pushSubscriptions = loadPushSubscriptions();
 
@@ -102,7 +114,9 @@ const vapidKeys = loadOrCreateVapidKeys();
 webpush.setVapidDetails('mailto:admin@localhost', vapidKeys.publicKey, vapidKeys.privateKey);
 
 const sessionSecret = loadOrCreateSessionSecret();
+const familyPasswordHash = loadFamilyPasswordHash();
 const SESSION_COOKIE = 'kalndar_session';
+const FAMILY_COOKIE = 'kalndar_family';
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 90; // 90 jours
 
 function isValidDate(str) {
@@ -162,6 +176,20 @@ function verifySessionToken(token) {
   return memberId;
 }
 
+// preuve (signée, sans lien avec un membre précis) que le mot de passe familial a été
+// entré correctement ; nécessaire avant de pouvoir choisir une identité ou se connecter
+function createFamilyToken() {
+  return sign('family-ok');
+}
+
+function verifyFamilyToken(token) {
+  if (typeof token !== 'string') return false;
+  const expected = sign('family-ok');
+  const a = Buffer.from(token);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 function parseCookies(req) {
   const header = req.headers.cookie;
   const cookies = {};
@@ -184,6 +212,12 @@ function requireAuth(req, res, next) {
   next();
 }
 
+function requireFamilyAuth(req, res, next) {
+  const cookies = parseCookies(req);
+  if (!verifyFamilyToken(cookies[FAMILY_COOKIE])) return res.status(401).json({ error: 'Mot de passe familial requis' });
+  next();
+}
+
 function setSessionCookie(res, memberId) {
   res.cookie(SESSION_COOKIE, createSessionToken(memberId), {
     httpOnly: true,
@@ -193,7 +227,25 @@ function setSessionCookie(res, memberId) {
   });
 }
 
-app.get('/api/members', (req, res) => {
+function setFamilyCookie(res) {
+  res.cookie(FAMILY_COOKIE, createFamilyToken(), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: true,
+    maxAge: SESSION_MAX_AGE_MS,
+  });
+}
+
+app.post('/api/family-login', (req, res) => {
+  const { password } = req.body || {};
+  if (!familyPasswordHash || !verifyPassword(password, familyPasswordHash)) {
+    return res.status(401).json({ error: 'Mot de passe incorrect' });
+  }
+  setFamilyCookie(res);
+  res.status(204).end();
+});
+
+app.get('/api/members', requireFamilyAuth, (req, res) => {
   res.json(members.map(publicMember));
 });
 
@@ -204,13 +256,12 @@ app.get('/api/me', (req, res) => {
   res.json(publicMember(memberById(memberId)));
 });
 
-app.post('/api/login', (req, res) => {
-  const { memberId, password } = req.body || {};
+// le mot de passe familial (requireFamilyAuth) a déjà validé l'accès : choisir son
+// identité ne demande plus de mot de passe individuel
+app.post('/api/login', requireFamilyAuth, (req, res) => {
+  const { memberId } = req.body || {};
   const member = memberById(memberId);
-
-  if (!member || !verifyPassword(password, member.passwordHash)) {
-    return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect' });
-  }
+  if (!member) return res.status(400).json({ error: 'Membre invalide' });
 
   setSessionCookie(res, member.id);
   res.json(publicMember(member));

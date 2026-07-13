@@ -4,3 +4,4 @@ game/data/members.json
 game/data/session-secret
 game/data/vapid-keys.json
 game/data/push-subscriptions.json
+game/data/family-password.json

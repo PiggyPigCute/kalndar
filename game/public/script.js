@@ -6,7 +6,6 @@ const MONTH_LABELS = [
 let members = [];
 let events = [];
 let currentMember = null;
-let loginMemberId = null;
 let currentDate = new Date();
 let selectedDate = todayString();
 let editingEventId = null;
@@ -14,12 +13,12 @@ let selectedNotifyLeadMinutes = null; // délai de rappel choisi pour l'utilisat
 
 const identityScreen = document.getElementById('identityScreen');
 const appScreen = document.getElementById('appScreen');
+const familyGate = document.getElementById('familyGate');
+const familyLoginForm = document.getElementById('familyLoginForm');
+const familyPassword = document.getElementById('familyPassword');
+const familyLoginError = document.getElementById('familyLoginError');
+const identityPicker = document.getElementById('identityPicker');
 const identityList = document.getElementById('identityList');
-const loginForm = document.getElementById('loginForm');
-const loginAs = document.getElementById('loginAs');
-const loginPassword = document.getElementById('loginPassword');
-const loginError = document.getElementById('loginError');
-const loginBackBtn = document.getElementById('loginBackBtn');
 const memberFilters = document.getElementById('memberFilters');
 
 // membres actuellement masqués de la grille du calendrier (le day-panel, lui, montre toujours tout)
@@ -168,60 +167,82 @@ async function loadEvents() {
 
 // --- Identity / login screen ---
 
-function renderIdentityScreen() {
+function renderIdentityList() {
   identityList.innerHTML = '';
   members.forEach(member => {
     const btn = document.createElement('button');
     btn.className = 'identity-option';
     btn.innerHTML = `<span class="identity-dot" style="background:${member.color}"></span> ${member.name}`;
-    btn.addEventListener('click', () => openLoginForm(member));
+    btn.addEventListener('click', () => loginAsMember(member));
     identityList.appendChild(btn);
   });
 }
 
-function openLoginForm(member) {
-  loginMemberId = member.id;
-  loginAs.textContent = `Mot de passe pour ${member.name}`;
-  loginPassword.value = '';
-  loginError.classList.add('hidden');
-  identityList.classList.add('hidden');
-  loginForm.classList.remove('hidden');
-  loginPassword.focus();
-}
-
-function closeLoginForm() {
-  loginMemberId = null;
-  loginForm.classList.add('hidden');
-  identityList.classList.remove('hidden');
-}
-
-loginBackBtn.addEventListener('click', closeLoginForm);
-
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginError.classList.add('hidden');
+async function loginAsMember(member) {
   try {
-    const member = await fetchJSON('/api/login', {
+    const loggedIn = await fetchJSON('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId: loginMemberId, password: loginPassword.value }),
+      body: JSON.stringify({ memberId: member.id }),
     });
-    loginForm.classList.add('hidden');
-    identityList.classList.remove('hidden');
-    await showApp(member);
+    await showApp(loggedIn);
   } catch (err) {
-    loginError.textContent = err.message;
-    loginError.classList.remove('hidden');
-    loginPassword.value = '';
-    loginPassword.focus();
+    if (err.status === 401) {
+      // le mot de passe familial a expiré entre-temps : on repart du début
+      showFamilyGate();
+    } else {
+      alert(err.message);
+    }
+  }
+}
+
+function showFamilyGate() {
+  familyPassword.value = '';
+  familyLoginError.classList.add('hidden');
+  familyGate.classList.remove('hidden');
+  identityPicker.classList.add('hidden');
+  identityScreen.classList.remove('hidden');
+  appScreen.classList.add('hidden');
+}
+
+function showIdentityPicker() {
+  familyGate.classList.add('hidden');
+  identityPicker.classList.remove('hidden');
+  identityScreen.classList.remove('hidden');
+  appScreen.classList.add('hidden');
+}
+
+familyLoginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  familyLoginError.classList.add('hidden');
+  try {
+    await fetchJSON('/api/family-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: familyPassword.value }),
+    });
+    await loadMembers();
+    renderIdentityList();
+    showIdentityPicker();
+  } catch (err) {
+    familyLoginError.textContent = err.message;
+    familyLoginError.classList.remove('hidden');
+    familyPassword.value = '';
+    familyPassword.focus();
   }
 });
 
-function showIdentityScreen() {
+// point d'entrée générique après une session expirée : ré-essaie /api/members
+// (mot de passe familial encore valide ?) avant de redemander depuis le début
+async function showIdentityScreen() {
   currentMember = null;
-  closeLoginForm();
-  identityScreen.classList.remove('hidden');
-  appScreen.classList.add('hidden');
+  try {
+    await loadMembers();
+    renderIdentityList();
+    showIdentityPicker();
+  } catch {
+    showFamilyGate();
+  }
 }
 
 async function showApp(member) {
@@ -723,7 +744,6 @@ eventForm.addEventListener('submit', async (e) => {
   } catch (err) {
     if (err.status === 401) {
       closeModal();
-      renderIdentityScreen();
       showIdentityScreen();
       return;
     }
@@ -744,7 +764,6 @@ deleteEventBtn.addEventListener('click', async () => {
   } catch (err) {
     if (err.status === 401) {
       closeModal();
-      renderIdentityScreen();
       showIdentityScreen();
       return;
     }
@@ -1070,7 +1089,6 @@ socket.on('events:changed', async () => {
     renderDayPanel();
   } catch (err) {
     if (err.status === 401) {
-      renderIdentityScreen();
       showIdentityScreen();
     }
   }
@@ -1245,12 +1263,10 @@ function handleNotificationAction({ date, eventId, edit }) {
 // --- Boot ---
 
 (async function init() {
-  await loadMembers();
-  renderIdentityScreen();
   try {
     const member = await fetchJSON('/api/me');
     await showApp(member);
   } catch (err) {
-    showIdentityScreen();
+    await showIdentityScreen(); // gère lui-même mot de passe familial vs liste des membres
   }
 })();
