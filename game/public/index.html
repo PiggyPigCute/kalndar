@@ -33,37 +33,117 @@
 </div>
 
 <div id="appScreen" class="screen hidden">
-  <header class="topbar">
-    <div class="topbar-left">
-      <h1>k<span class="title-rest">al'n'dar</span></h1>
-    </div>
-    <div class="topbar-right">
-      <div id="memberFilters" class="member-checkboxes"></div>
-    </div>
-  </header>
+  <div class="app-shell">
+    <nav id="mainNav" class="main-nav">
+      <button type="button" class="nav-btn active" data-view="month">
+        <span class="nav-icon">📅</span><span class="nav-label">Mois</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="agenda">
+        <span class="nav-icon">🗓️</span><span class="nav-label">Agenda</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="notes">
+        <span class="nav-icon">📝</span><span class="nav-label">Notes</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="todos">
+        <span class="nav-icon">✅</span><span class="nav-label">Tâches</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="birthdays">
+        <span class="nav-icon">🎂</span><span class="nav-label">Anniv.</span>
+      </button>
+    </nav>
 
-  <div class="app-layout">
-    <div class="calendar-main">
-      <div class="toolbar">
-        <div class="nav-group">
-          <button id="prevMonthBtn" class="icon-btn" aria-label="Mois précédent">‹</button>
-          <button id="todayBtn" class="today-btn">Aujourd'hui</button>
-          <button id="nextMonthBtn" class="icon-btn" aria-label="Mois suivant">›</button>
+    <div class="app-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1>k<span class="title-rest">al'n'dar</span></h1>
         </div>
-        <h2 id="monthLabel" class="month-label"></h2>
+        <div class="topbar-right">
+          <div id="memberFilters" class="member-checkboxes"></div>
+        </div>
+      </header>
+
+      <div id="view-month" class="view">
+        <div class="app-layout">
+          <div class="calendar-main">
+            <div class="toolbar">
+              <div class="nav-group">
+                <button id="prevMonthBtn" class="icon-btn" aria-label="Mois précédent">‹</button>
+                <button id="todayBtn" class="today-btn">Aujourd'hui</button>
+                <button id="nextMonthBtn" class="icon-btn" aria-label="Mois suivant">›</button>
+              </div>
+              <h2 id="monthLabel" class="month-label"></h2>
+            </div>
+
+            <div class="weekdays" id="weekdaysRow"></div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </div>
+
+          <aside class="day-panel">
+            <div class="day-panel-header">
+              <h2 id="dayPanelDate"></h2>
+              <button id="dayPanelAddBtn" class="day-panel-add-btn" aria-label="Ajouter un événement"></button>
+            </div>
+            <div class="day-panel-list" id="dayPanelList"></div>
+          </aside>
+        </div>
       </div>
 
-      <div class="weekdays" id="weekdaysRow"></div>
-      <div class="calendar-grid" id="calendarGrid"></div>
+      <div id="view-agenda" class="view hidden">
+        <div class="agenda-toolbar">
+          <div class="agenda-nav-group">
+            <button id="agendaPrevBtn" class="icon-btn" aria-label="Précédent">‹</button>
+            <button id="agendaTodayBtn" class="today-btn">Aujourd'hui</button>
+            <button id="agendaNextBtn" class="icon-btn" aria-label="Suivant">›</button>
+          </div>
+          <h2 id="agendaLabel" class="month-label"></h2>
+          <button id="agendaAddBtn" class="day-panel-add-btn" aria-label="Ajouter un événement"></button>
+        </div>
+        <div class="agenda-grid" id="agendaGrid"></div>
+      </div>
+
+      <div id="view-notes" class="view hidden">
+        <div class="notes-layout">
+          <div class="notes-list-pane" id="notesListPane">
+            <div class="notes-list-header">
+              <h2>Notes</h2>
+              <button type="button" id="noteAddBtn" class="day-panel-add-btn" aria-label="Nouvelle note"></button>
+            </div>
+            <div class="notes-list" id="notesList"></div>
+          </div>
+          <div class="notes-editor-pane" id="notesEditorPane">
+            <button type="button" id="noteBackBtn" class="secondary-btn notes-back-btn">‹ Retour</button>
+            <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Titre" maxlength="200">
+            <textarea id="noteBodyInput" class="notes-body-input" placeholder="Écris ici…"></textarea>
+            <button type="button" id="noteDeleteBtn" class="danger-btn">Supprimer</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-todos" class="view hidden">
+        <h2>Tâches</h2>
+        <form id="todoForm" class="todo-form">
+          <input type="text" id="todoInput" placeholder="Nouvelle tâche…" maxlength="300" required autocomplete="off">
+          <button type="submit" class="primary-btn">Ajouter</button>
+        </form>
+        <div class="todo-list" id="todoList"></div>
+      </div>
+
+      <div id="view-birthdays" class="view hidden">
+        <h2>Anniversaires</h2>
+        <form id="birthdayForm" class="birthday-form">
+          <label>
+            Nom
+            <input type="text" id="birthdayNameInput" maxlength="100" required autocomplete="off">
+          </label>
+          <label>
+            Date
+            <input type="date" id="birthdayDateInput" required>
+          </label>
+          <button type="submit" class="primary-btn">Ajouter</button>
+        </form>
+        <div class="birthday-list" id="birthdayList"></div>
+      </div>
     </div>
-
-    <aside class="day-panel">
-      <div class="day-panel-header">
-        <h2 id="dayPanelDate"></h2>
-        <button id="dayPanelAddBtn" class="day-panel-add-btn" aria-label="Ajouter un événement"></button>
-      </div>
-      <div class="day-panel-list" id="dayPanelList"></div>
-    </aside>
   </div>
 </div>
 
@@ -162,5 +242,10 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="script.js"></script>
+<script src="nav.js"></script>
+<script src="agenda.js"></script>
+<script src="notes.js"></script>
+<script src="todos.js"></script>
+<script src="birthdays.js"></script>
 </body>
 </html>

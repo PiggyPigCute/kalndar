@@ -458,6 +458,149 @@ app.post('/api/events/:id/notify', requireAuth, (req, res) => {
   res.status(204).end();
 });
 
+// --- Données personnelles (notes, TODO, anniversaires) ---
+// jamais partagées entre membres : chaque route ci-dessous ne lit/écrit que la liste de
+// req.memberId, jamais un memberId arbitraire venant du body ou de l'URL
+
+function createPersonalListStore(fileName) {
+  const filePath = path.join(__dirname, 'data', fileName);
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err; // JSON invalide : on plante plutôt que d'écraser silencieusement
+    data = {};
+  }
+
+  function listFor(memberId) {
+    if (!Array.isArray(data[memberId])) data[memberId] = [];
+    return data[memberId];
+  }
+
+  function save() {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  }
+
+  return { listFor, save };
+}
+
+const notesStore = createPersonalListStore('notes.json');
+
+app.get('/api/notes', requireAuth, (req, res) => {
+  res.json(notesStore.listFor(req.memberId));
+});
+
+app.post('/api/notes', requireAuth, (req, res) => {
+  const note = { id: crypto.randomUUID(), title: '', body: '', updatedAt: new Date().toISOString() };
+  notesStore.listFor(req.memberId).unshift(note);
+  notesStore.save();
+  res.status(201).json(note);
+});
+
+app.put('/api/notes/:id', requireAuth, (req, res) => {
+  const note = notesStore.listFor(req.memberId).find(n => n.id === req.params.id);
+  if (!note) return res.status(404).json({ error: 'Note introuvable' });
+
+  const { title, body } = req.body || {};
+  note.title = typeof title === 'string' ? title.slice(0, 200) : '';
+  note.body = typeof body === 'string' ? body.slice(0, 20000) : '';
+  note.updatedAt = new Date().toISOString();
+  notesStore.save();
+  res.json(note);
+});
+
+app.delete('/api/notes/:id', requireAuth, (req, res) => {
+  const list = notesStore.listFor(req.memberId);
+  const index = list.findIndex(n => n.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Note introuvable' });
+
+  list.splice(index, 1);
+  notesStore.save();
+  res.status(204).end();
+});
+
+const todosStore = createPersonalListStore('todos.json');
+
+app.get('/api/todos', requireAuth, (req, res) => {
+  res.json(todosStore.listFor(req.memberId));
+});
+
+app.post('/api/todos', requireAuth, (req, res) => {
+  const { text } = req.body || {};
+  if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
+
+  const todo = { id: crypto.randomUUID(), text: text.trim().slice(0, 300), done: false };
+  todosStore.listFor(req.memberId).push(todo);
+  todosStore.save();
+  res.status(201).json(todo);
+});
+
+app.put('/api/todos/:id', requireAuth, (req, res) => {
+  const todo = todosStore.listFor(req.memberId).find(t => t.id === req.params.id);
+  if (!todo) return res.status(404).json({ error: 'Tâche introuvable' });
+
+  const { text, done } = req.body || {};
+  if (text !== undefined) {
+    if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
+    todo.text = text.trim().slice(0, 300);
+  }
+  if (done !== undefined) todo.done = !!done;
+  todosStore.save();
+  res.json(todo);
+});
+
+app.delete('/api/todos/:id', requireAuth, (req, res) => {
+  const list = todosStore.listFor(req.memberId);
+  const index = list.findIndex(t => t.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Tâche introuvable' });
+
+  list.splice(index, 1);
+  todosStore.save();
+  res.status(204).end();
+});
+
+const birthdaysStore = createPersonalListStore('birthdays.json');
+
+app.get('/api/birthdays', requireAuth, (req, res) => {
+  res.json(birthdaysStore.listFor(req.memberId));
+});
+
+app.post('/api/birthdays', requireAuth, (req, res) => {
+  const { name, date } = req.body || {};
+  if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nom requis' });
+  if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
+
+  const birthday = { id: crypto.randomUUID(), name: name.trim().slice(0, 100), date };
+  birthdaysStore.listFor(req.memberId).push(birthday);
+  birthdaysStore.save();
+  res.status(201).json(birthday);
+});
+
+app.put('/api/birthdays/:id', requireAuth, (req, res) => {
+  const birthday = birthdaysStore.listFor(req.memberId).find(b => b.id === req.params.id);
+  if (!birthday) return res.status(404).json({ error: 'Anniversaire introuvable' });
+
+  const { name, date } = req.body || {};
+  if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nom requis' });
+  if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
+
+  birthday.name = name.trim().slice(0, 100);
+  birthday.date = date;
+  birthdaysStore.save();
+  res.json(birthday);
+});
+
+app.delete('/api/birthdays/:id', requireAuth, (req, res) => {
+  const list = birthdaysStore.listFor(req.memberId);
+  const index = list.findIndex(b => b.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Anniversaire introuvable' });
+
+  list.splice(index, 1);
+  birthdaysStore.save();
+  res.status(204).end();
+});
+
 app.delete('/api/events/:id', requireAuth, (req, res) => {
   const index = events.findIndex(e => e.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: 'Événement introuvable' });

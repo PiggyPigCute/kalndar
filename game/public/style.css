@@ -130,6 +130,60 @@ body {
   padding: 16px 20px 60px;
 }
 
+.app-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.main-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 82px;
+  position: sticky;
+  top: 16px;
+}
+
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-family: inherit;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-btn:hover {
+  background: var(--surface);
+}
+
+.nav-btn.active {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.nav-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.view.hidden { display: none; }
+
 .app-layout {
   display: flex;
   align-items: stretch;
@@ -188,7 +242,8 @@ body {
   padding: 4px;
 }
 
-.toolbar {
+.toolbar,
+.agenda-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -197,7 +252,8 @@ body {
   margin-bottom: 16px;
 }
 
-.nav-group {
+.nav-group,
+.agenda-nav-group {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1007,10 +1063,339 @@ body {
   margin-left: auto;
 }
 
+/* --- Agenda (jour tel / semaine pc) --- */
+
+.agenda-grid {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.agenda-days-header,
+.agenda-allday-row,
+.agenda-hours-row {
+  display: flex;
+}
+
+.agenda-days-header,
+.agenda-allday-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.agenda-gutter {
+  flex: 0 0 48px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.agenda-day-header,
+.agenda-allday-cell {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding: 6px 4px;
+}
+
+.agenda-day-header {
+  cursor: pointer;
+  text-align: center;
+}
+
+.agenda-day-header .agenda-weekday {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.agenda-day-header .agenda-daynum {
+  display: inline-block;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.agenda-day-header.today .agenda-daynum {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+}
+
+.agenda-day-header.weekend,
+.agenda-allday-cell.weekend { background: rgba(255, 255, 255, 0.02); }
+
+.agenda-allday-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 28px;
+}
+
+.agenda-chip {
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.agenda-scroll-wrap {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.agenda-hours-gutter {
+  flex: 0 0 48px;
+  position: relative;
+}
+
+.agenda-hour-label {
+  position: absolute;
+  left: 0;
+  right: 4px;
+  text-align: right;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.agenda-day-col {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  border-left: 1px solid var(--border);
+}
+
+.agenda-event-block {
+  position: absolute;
+  border-radius: 6px;
+  padding: 2px 5px;
+  font-size: 0.75rem;
+  color: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* --- Notes --- */
+
+.notes-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  min-height: 60vh;
+}
+
+.notes-list-pane {
+  flex: 0 0 280px;
+  min-width: 0;
+}
+
+.notes-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.notes-list-header h2 { margin: 0; font-size: 1.1rem; }
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-list-item {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.note-list-item:hover { border-color: var(--accent); }
+.note-list-item.active { border-color: var(--accent); }
+
+.note-list-item-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-list-item-preview {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+
+.notes-editor-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notes-back-btn { display: none; align-self: flex-start; }
+
+.notes-title-input {
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 8px 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+}
+
+.notes-body-input {
+  flex: 1;
+  min-height: 300px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 10px 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  resize: none;
+}
+
+.notes-title-input:focus,
+.notes-body-input:focus { outline: none; }
+
+.notes-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* --- TODO --- */
+
+.todo-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.todo-form input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.todo-item-text { flex: 1; min-width: 0; word-break: break-word; }
+.todo-item.done .todo-item-text { text-decoration: line-through; color: var(--text-muted); }
+
+.todo-item-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+}
+.todo-item-delete:hover { color: var(--danger); }
+
+/* --- Anniversaires --- */
+
+.birthday-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.birthday-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.birthday-form input {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.birthday-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.birthday-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.birthday-item-name { flex: 1; min-width: 0; font-weight: 600; }
+.birthday-item-date { color: var(--text-muted); font-size: 0.85rem; }
+
+.birthday-item-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+}
+.birthday-item-delete:hover { color: var(--danger); }
+
 /* day-pannel under calendar*/
 @media (max-width: 900px) {
   .app-layout { flex-direction: column; }
   .day-panel { width: 100%; position: static; }
+
+  .agenda-day-header:not(.is-selected),
+  .agenda-allday-cell:not(.is-selected),
+  .agenda-day-col:not(.is-selected) { display: none; }
 }
 
 /* mobile */
@@ -1023,7 +1408,7 @@ body {
   .event-bar.event-start { margin-left: 1px; }
   .event-bar.event-end { margin-right: 1px; }
 
-  .toolbar { justify-content: center; }
+  .toolbar, .agenda-toolbar { justify-content: center; }
   .month-label { order: -1; width: 100%; }
 
   .title-rest { display: none; } /* hide "al'n'dar" */
@@ -1038,4 +1423,29 @@ body {
      fasse exactement 1/7 de la largeur de l'écran */
   .calendar-main { margin: 0 -5px; }
   .calendar-grid { border-left: none; border-right: none; border-radius: 0; }
+
+  /* nav : side bar -> tab bar fixée en bas */
+  #appScreen { padding-bottom: 70px; }
+  .app-shell { flex-direction: column; }
+  .main-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 6px 0;
+    z-index: 50;
+  }
+  .nav-btn { flex: 1; font-size: 0.62rem; padding: 6px 2px; }
+  .nav-icon { font-size: 1.3rem; }
+
+  /* notes : un seul volet à la fois, avec bouton retour */
+  .notes-layout.editor-open .notes-list-pane { display: none; }
+  .notes-layout:not(.editor-open) .notes-editor-pane { display: none; }
+  .notes-back-btn { display: inline-block; }
+  .notes-list-pane { flex: 1; }
 }

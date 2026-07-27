@@ -1201,6 +1201,7 @@ socket.on('events:changed', async () => {
     await loadEvents();
     renderCalendar();
     renderDayPanel();
+    if (currentView === 'agenda') renderAgenda();
   } catch (err) {
     if (err.status === 401) {
       showIdentityScreen();
@@ -1543,6 +1544,7 @@ function applyNotificationActionFromURL() {
 }
 
 function handleNotificationAction({ date, eventId, edit }) {
+  switchView('month');
   if (date) selectDate(date);
   if (edit && eventId) {
     const ev = events.find(e => e.id === eventId);
