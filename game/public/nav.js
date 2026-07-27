@@ -18,7 +18,9 @@ const VIEW_RENDERERS = {
 // sur la view "month", la tab bar (tel) reste cachée par défaut pour laisser toute la
 // place au calendrier ; taper sur le "k" du logo la fait apparaître/disparaître (secret
 // toggle). Sur les autres views elle reste normalement affichée (seule façon d'y revenir).
-let monthTabBarRevealed = false;
+// Le choix est mémorisé dans localStorage pour survivre aux rechargements/prochaines visites.
+const TAB_BAR_REVEALED_KEY = 'kalndar_tabbar_revealed';
+let monthTabBarRevealed = localStorage.getItem(TAB_BAR_REVEALED_KEY) === '1';
 
 function updateTabBarVisibility() {
   const hidden = currentView === 'month' && !monthTabBarRevealed;
@@ -27,7 +29,6 @@ function updateTabBarVisibility() {
 
 function switchView(name) {
   currentView = name;
-  if (name === 'month') monthTabBarRevealed = false; // masquée à nouveau à chaque arrivée sur ce mois
 
   document.querySelectorAll('.app-content > .view').forEach(view => {
     view.classList.toggle('hidden', view.id !== `view-${name}`);
@@ -45,6 +46,7 @@ navButtons.forEach(btn => {
 
 logoK.addEventListener('click', () => {
   monthTabBarRevealed = !monthTabBarRevealed;
+  localStorage.setItem(TAB_BAR_REVEALED_KEY, monthTabBarRevealed ? '1' : '0');
   updateTabBarVisibility();
 });
 
