@@ -2,6 +2,7 @@
 
 const mainNav = document.getElementById('mainNav');
 const navButtons = [...mainNav.querySelectorAll('.nav-btn')];
+const logoK = document.querySelector('.logo-k');
 
 let currentView = 'month';
 
@@ -14,12 +15,25 @@ const VIEW_RENDERERS = {
   birthdays: () => renderBirthdays(),
 };
 
+// sur la view "month", la tab bar (tel) reste cachée par défaut pour laisser toute la
+// place au calendrier ; taper sur le "k" du logo la fait apparaître/disparaître (secret
+// toggle). Sur les autres views elle reste normalement affichée (seule façon d'y revenir).
+let monthTabBarRevealed = false;
+
+function updateTabBarVisibility() {
+  const hidden = currentView === 'month' && !monthTabBarRevealed;
+  mainNav.classList.toggle('nav-auto-hidden', hidden);
+}
+
 function switchView(name) {
   currentView = name;
+  if (name === 'month') monthTabBarRevealed = false; // masquée à nouveau à chaque arrivée sur ce mois
+
   document.querySelectorAll('.app-content > .view').forEach(view => {
     view.classList.toggle('hidden', view.id !== `view-${name}`);
   });
   navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
+  updateTabBarVisibility();
 
   const render = VIEW_RENDERERS[name];
   if (render) render();
@@ -28,3 +42,10 @@ function switchView(name) {
 navButtons.forEach(btn => {
   btn.addEventListener('click', () => switchView(btn.dataset.view));
 });
+
+logoK.addEventListener('click', () => {
+  monthTabBarRevealed = !monthTabBarRevealed;
+  updateTabBarVisibility();
+});
+
+updateTabBarVisibility();

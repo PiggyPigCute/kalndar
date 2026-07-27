@@ -208,6 +208,10 @@ body {
   margin: 0;
 }
 
+.logo-k {
+  cursor: pointer;
+}
+
 .topbar-right {
   display: flex;
   align-items: center;
@@ -1441,6 +1445,12 @@ body {
     border-top: 1px solid var(--border);
     padding: 6px 0;
     z-index: 50;
+    transition: transform 0.2s ease;
+  }
+
+  /* view "month" : tab bar cachée par défaut, révélée en tapant sur le "k" du logo */
+  .main-nav.nav-auto-hidden {
+    transform: translateY(100%);
   }
   .nav-btn { flex: 1; font-size: 0.62rem; padding: 6px 2px; }
   .nav-icon { font-size: 1.3rem; }
