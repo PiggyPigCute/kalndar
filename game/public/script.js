@@ -58,6 +58,15 @@ const formError = document.getElementById('formError');
 const deleteEventBtn = document.getElementById('deleteEventBtn');
 const cancelModalBtn = document.getElementById('cancelModalBtn');
 
+const detailModalOverlay = document.getElementById('eventDetailOverlay');
+const detailTitle = document.getElementById('detailTitle');
+const detailDateTime = document.getElementById('detailDateTime');
+const detailMembers = document.getElementById('detailMembers');
+const detailNotifyOptions = document.getElementById('detailNotifyOptions');
+const detailNotifyNoneBtn = document.getElementById('detailNotifyNoneBtn');
+const detailDeleteBtn = document.getElementById('detailDeleteBtn');
+const detailEditBtn = document.getElementById('detailEditBtn');
+
 function pad(n) { return String(n).padStart(2, '0'); }
 function formatDate(year, month, day) { return `${year}-${pad(month + 1)}-${pad(day)}`; }
 function todayString() {
@@ -620,7 +629,7 @@ function buildDayPanelItem(ev) {
       ${ev.description ? `<div class="day-panel-item-desc">${escapeHtml(ev.description)}</div>` : ''}
     </div>
   `;
-  item.addEventListener('click', () => openEditModal(ev));
+  item.addEventListener('click', () => openDetailModal(ev));
   return item;
 }
 
@@ -1258,25 +1267,16 @@ async function ensureNotifyPermission() {
   }
 }
 
-function openNotifyModal(ev) {
-  notifyModalEventId = ev.id;
+function ownNotifyMinutes(ev) {
   const ownNotify = ev.notifications && currentMember && ev.notifications[currentMember.id];
-  const current = ownNotify && Number.isInteger(ownNotify.leadMinutes) ? ownNotify.leadMinutes : null;
-  notifyChoiceOptions.querySelectorAll('.notify-option').forEach(btn => {
-    btn.classList.toggle('selected', Number(btn.dataset.minutes) === current);
-  });
-  notifyModalOverlay.classList.remove('hidden');
+  return ownNotify && Number.isInteger(ownNotify.leadMinutes) ? ownNotify.leadMinutes : null;
 }
 
-function closeNotifyModal() {
-  notifyModalOverlay.classList.add('hidden');
-  notifyModalEventId = null;
-}
-
-async function chooseNotifyPreference(minutes) {
-  const eventId = notifyModalEventId;
-  if (!eventId) return;
-  if (minutes !== null && !(await ensureNotifyPermission())) return;
+// applique le choix de rappel personnel sur le serveur et met à jour `events` en local ;
+// renvoie false si l'utilisateur a refusé la permission de notification ou si l'appel échoue
+async function applyNotifyChoice(eventId, minutes) {
+  if (!eventId) return false;
+  if (minutes !== null && !(await ensureNotifyPermission())) return false;
 
   try {
     await fetchJSON(`/api/events/${eventId}/notify`, {
@@ -1290,9 +1290,29 @@ async function chooseNotifyPreference(minutes) {
       if (minutes === null) delete ev.notifications[currentMember.id];
       else ev.notifications[currentMember.id] = { leadMinutes: minutes };
     }
+    return true;
   } catch (err) {
     console.error('Préférence de rappel :', err);
+    return false;
   }
+}
+
+function openNotifyModal(ev) {
+  notifyModalEventId = ev.id;
+  const current = ownNotifyMinutes(ev);
+  notifyChoiceOptions.querySelectorAll('.notify-option').forEach(btn => {
+    btn.classList.toggle('selected', Number(btn.dataset.minutes) === current);
+  });
+  notifyModalOverlay.classList.remove('hidden');
+}
+
+function closeNotifyModal() {
+  notifyModalOverlay.classList.add('hidden');
+  notifyModalEventId = null;
+}
+
+async function chooseNotifyPreference(minutes) {
+  await applyNotifyChoice(notifyModalEventId, minutes);
   closeNotifyModal();
 }
 
@@ -1301,6 +1321,129 @@ notifyChoiceOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn
 });
 
 notifyNoneBtn.addEventListener('click', () => chooseNotifyPreference(null));
+
+// --- Popup de détail (aperçu avant modification, ouverte au clic sur un événement) ---
+
+let detailEventId = null;
+
+function formatDetailDateTime(ev) {
+  const datePart = ev.endDate !== ev.date
+    ? `Du ${formatShortDate(ev.date)} au ${formatShortDate(ev.endDate)}`
+    : formatFullDate(ev.date);
+  const timePart = ev.startTime ? ` · ${ev.startTime}${ev.endTime ? '–' + ev.endTime : ''}` : '';
+  return datePart + timePart;
+}
+
+function renderDetailMembers(checkedIds) {
+  detailMembers.innerHTML = '';
+  members.forEach(member => {
+    const label = document.createElement('label');
+    label.className = 'member-checkbox';
+    label.style.setProperty('--member-color', member.color);
+    const checked = checkedIds.includes(member.id) ? 'checked' : '';
+    label.innerHTML = `
+      <input type="checkbox" value="${member.id}" ${checked}>
+      ${escapeHtml(member.name)}
+    `;
+    detailMembers.appendChild(label);
+  });
+}
+
+function renderDetailNotifyOptions(ev) {
+  const current = ownNotifyMinutes(ev);
+  detailNotifyOptions.querySelectorAll('.notify-option').forEach(btn => {
+    btn.classList.toggle('selected', Number(btn.dataset.minutes) === current);
+  });
+}
+
+function openDetailModal(ev) {
+  detailEventId = ev.id;
+  detailTitle.textContent = ev.title;
+  detailDateTime.textContent = formatDetailDateTime(ev);
+  renderDetailMembers(ev.memberIds || []);
+  renderDetailNotifyOptions(ev);
+  detailModalOverlay.classList.remove('hidden');
+}
+
+function closeDetailModal() {
+  detailModalOverlay.classList.add('hidden');
+  detailEventId = null;
+}
+
+detailModalOverlay.addEventListener('click', (e) => {
+  if (e.target === detailModalOverlay) closeDetailModal();
+});
+
+detailMembers.addEventListener('change', async () => {
+  const eventId = detailEventId;
+  if (!eventId) return;
+  const memberIds = [...detailMembers.querySelectorAll('input:checked')].map(input => input.value);
+  if (memberIds.length === 0) {
+    alert('Il faut au moins un membre concerné.');
+    const ev = events.find(e => e.id === eventId);
+    if (ev) renderDetailMembers(ev.memberIds || []);
+    return;
+  }
+  try {
+    await fetchJSON(`/api/events/${eventId}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberIds }),
+    });
+    await loadEvents();
+    renderCalendar();
+    renderDayPanel();
+  } catch (err) {
+    if (err.status === 401) {
+      closeDetailModal();
+      showIdentityScreen();
+      return;
+    }
+    console.error('Membres concernés :', err);
+  }
+});
+
+detailNotifyOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const eventId = detailEventId;
+    const ok = await applyNotifyChoice(eventId, Number(btn.dataset.minutes));
+    const ev = events.find(e => e.id === eventId);
+    if (ok && ev) renderDetailNotifyOptions(ev);
+  });
+});
+
+detailNotifyNoneBtn.addEventListener('click', async () => {
+  const eventId = detailEventId;
+  const ok = await applyNotifyChoice(eventId, null);
+  const ev = events.find(e => e.id === eventId);
+  if (ok && ev) renderDetailNotifyOptions(ev);
+});
+
+detailEditBtn.addEventListener('click', () => {
+  const ev = events.find(e => e.id === detailEventId);
+  closeDetailModal();
+  if (ev) openEditModal(ev);
+});
+
+detailDeleteBtn.addEventListener('click', async () => {
+  const eventId = detailEventId;
+  if (!eventId) return;
+  if (!confirm('Supprimer cet événement ?')) return;
+  try {
+    await fetchJSON(`/api/events/${eventId}`, { method: 'DELETE' });
+    closeDetailModal();
+    await loadEvents();
+    renderCalendar();
+    renderDayPanel();
+  } catch (err) {
+    if (err.status === 401) {
+      closeDetailModal();
+      showIdentityScreen();
+      return;
+    }
+    console.error('Suppression :', err);
+  }
+});
 
 // --- Icône d'événement ---
 // affichée en permanence à côté du titre, dans la grille (event-pill/event-bar)

@@ -432,6 +432,21 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   res.json(event);
 });
 
+// bascule rapide des membres concernés depuis le popup de détail (sans passer par le
+// formulaire d'édition complet) ; les membres restent une donnée partagée entre tous
+app.post('/api/events/:id/members', requireAuth, (req, res) => {
+  const event = events.find(e => e.id === req.params.id);
+  if (!event) return res.status(404).json({ error: 'Événement introuvable' });
+
+  const normalizedMemberIds = normalizeMemberIds((req.body || {}).memberIds);
+  if (!normalizedMemberIds) return res.status(400).json({ error: 'Au moins un membre valide requis' });
+
+  event.memberIds = normalizedMemberIds;
+  saveEvents();
+  io.emit('events:changed');
+  res.json(event);
+});
+
 // préférence de rappel personnelle de l'auteur de la requête pour cet événement,
 // affichée via la popup "🔔 Notifier" après la création/modification d'un événement
 app.post('/api/events/:id/notify', requireAuth, (req, res) => {

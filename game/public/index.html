@@ -124,6 +124,30 @@
   </div>
 </div>
 
+<div id="eventDetailOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h2 id="detailTitle"></h2>
+    <p id="detailDateTime" class="detail-datetime"></p>
+    <div class="detail-section">
+      <div id="detailMembers" class="member-checkboxes"></div>
+    </div>
+    <div class="detail-section">
+      <div class="notify-options" id="detailNotifyOptions">
+        <button type="button" class="notify-option" data-minutes="1440">1 jour</button>
+        <button type="button" class="notify-option" data-minutes="60">1h</button>
+        <button type="button" class="notify-option" data-minutes="15">15min</button>
+      </div>
+      <button type="button" class="notify-none-btn" id="detailNotifyNoneBtn">Ne pas notifier</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" id="detailDeleteBtn" class="danger-btn">Supprimer</button>
+      <div class="modal-actions-right">
+        <button type="button" id="detailEditBtn" class="primary-btn">Modifier</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="notifyModalOverlay" class="modal-overlay hidden">
   <div class="modal notify-modal">
     <h2>🔔 Notifier</h2>
