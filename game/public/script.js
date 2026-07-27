@@ -9,7 +9,7 @@ let currentMember = null;
 let currentDate = new Date();
 let selectedDate = todayString();
 let editingEventId = null;
-let selectedNotifyLeadMinutes = null; // délai de rappel choisi pour l'utilisateur courant (null = pas de rappel)
+let notifyModalEventId = null; // événement concerné par la popup "🔔 Notifier" actuellement ouverte
 let eventIconNames = []; // chargée une fois depuis /api/event-icons
 let selectedEventIcon = null;
  
@@ -40,14 +40,9 @@ const modalOverlay = document.getElementById('eventModalOverlay');
 const modalTitle = document.getElementById('modalTitle');
 const eventForm = document.getElementById('eventForm');
 const fieldTitle = document.getElementById('fieldTitle');
-const notifyOptions = document.getElementById('notifyOptions');
-const notifyOtherBtn = document.getElementById('notifyOtherBtn');
-const notifyOtherPopup = document.getElementById('notifyOtherPopup');
-const notifyOtherDays = document.getElementById('notifyOtherDays');
-const notifyOtherHours = document.getElementById('notifyOtherHours');
-const notifyOtherMinutes = document.getElementById('notifyOtherMinutes');
-const notifyOtherConfirm = document.getElementById('notifyOtherConfirm');
-const notifyClearBtn = document.getElementById('notifyClearBtn');
+const notifyModalOverlay = document.getElementById('notifyModalOverlay');
+const notifyChoiceOptions = document.getElementById('notifyChoiceOptions');
+const notifyNoneBtn = document.getElementById('notifyNoneBtn');
 const iconPickerBtn = document.getElementById('iconPickerBtn');
 const iconPickerPreview = document.getElementById('iconPickerPreview');
 const iconPickerPopup = document.getElementById('iconPickerPopup');
@@ -749,9 +744,6 @@ function openNewModal(date) {
   renderMemberCheckboxes(currentMember ? [currentMember.id] : []);
   fieldDate.value = date;
   fieldEndDate.value = date;
-  selectedNotifyLeadMinutes = null;
-  closeNotifyOtherPopup();
-  renderNotifyOptions();
   selectedEventIcon = null;
   closeIconPickerPopup();
   renderIconPickerButton();
@@ -771,10 +763,6 @@ function openEditModal(ev) {
   fieldEndDate.value = ev.endDate || ev.date;
   fieldStartTime.value = ev.startTime || '';
   fieldEndTime.value = ev.endTime || '';
-  const ownNotify = ev.notifications && currentMember && ev.notifications[currentMember.id];
-  selectedNotifyLeadMinutes = ownNotify && Number.isInteger(ownNotify.leadMinutes) ? ownNotify.leadMinutes : null;
-  closeNotifyOtherPopup();
-  renderNotifyOptions();
   selectedEventIcon = ev.icon || null;
   closeIconPickerPopup();
   renderIconPickerButton();
@@ -835,19 +823,19 @@ eventForm.addEventListener('submit', async (e) => {
     startTime: fieldStartTime.value || null,
     endTime: fieldEndTime.value || null,
     description: fieldDescription.value,
-    notifyLeadMinutes: selectedNotifyLeadMinutes,
     icon: selectedEventIcon,
   };
 
   try {
+    let savedEvent;
     if (editingEventId) {
-      await fetchJSON(`/api/events/${editingEventId}`, {
+      savedEvent = await fetchJSON(`/api/events/${editingEventId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
     } else {
-      await fetchJSON('/api/events', {
+      savedEvent = await fetchJSON('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -857,6 +845,7 @@ eventForm.addEventListener('submit', async (e) => {
     await loadEvents();
     renderCalendar();
     renderDayPanel();
+    openNotifyModal(savedEvent);
   } catch (err) {
     if (err.status === 401) {
       closeModal();
@@ -1241,41 +1230,10 @@ async function subscribeToPush() {
   });
 }
 
-// Sélecteur de rappel (24h / 1h / ¼h / Autre) : fonctionne comme des radio-boutons,
-// avec bascule à off si on clique sur celui déjà sélectionné. Le rappel est personnel
-// à l'utilisateur connecté (chaque membre choisit le sien indépendamment des autres).
-
-const NOTIFY_FIXED_MINUTES = [1440, 60, 15];
-
-function formatLeadMinutes(totalMinutes) {
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  const parts = [];
-  if (days) parts.push(`${days}j`);
-  if (hours) parts.push(`${hours}h`);
-  if (minutes) parts.push(`${minutes}min`);
-  return parts.length ? parts.join(' ') : '0min';
-}
-
-function closeNotifyOtherPopup() {
-  notifyOtherPopup.classList.add('hidden');
-}
-
-function renderNotifyOptions() {
-  notifyOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn => {
-    btn.classList.toggle('selected', Number(btn.dataset.minutes) === selectedNotifyLeadMinutes);
-  });
-
-  const isOther = selectedNotifyLeadMinutes !== null && !NOTIFY_FIXED_MINUTES.includes(selectedNotifyLeadMinutes);
-  notifyOtherBtn.classList.toggle('selected', isOther);
-  notifyOtherBtn.textContent = isOther ? `(${formatLeadMinutes(selectedNotifyLeadMinutes)})` : '...';
-
-  notifyClearBtn.classList.toggle('disabled', selectedNotifyLeadMinutes === null);
-}
+// --- Popup "🔔 Notifier" (rappel personnel, affichée après la création/modification d'un événement) ---
 
 // demande la permission et s'abonne au push si besoin ; renvoie false si l'utilisateur
-// refuse ou que ce n'est pas possible, pour annuler la sélection du rappel dans ce cas
+// refuse ou que ce n'est pas possible
 async function ensureNotifyPermission() {
   if (!('Notification' in window) || !('serviceWorker' in navigator)) {
     alert('Les notifications ne sont pas prises en charge sur ce navigateur.');
@@ -1300,52 +1258,49 @@ async function ensureNotifyPermission() {
   }
 }
 
-async function selectNotifyLeadMinutes(minutes) {
-  if (minutes !== null && !(await ensureNotifyPermission())) {
-    renderNotifyOptions();
-    return;
-  }
-  selectedNotifyLeadMinutes = minutes;
-  renderNotifyOptions();
+function openNotifyModal(ev) {
+  notifyModalEventId = ev.id;
+  const ownNotify = ev.notifications && currentMember && ev.notifications[currentMember.id];
+  const current = ownNotify && Number.isInteger(ownNotify.leadMinutes) ? ownNotify.leadMinutes : null;
+  notifyChoiceOptions.querySelectorAll('.notify-option').forEach(btn => {
+    btn.classList.toggle('selected', Number(btn.dataset.minutes) === current);
+  });
+  notifyModalOverlay.classList.remove('hidden');
 }
 
-notifyOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    closeNotifyOtherPopup();
-    const minutes = Number(btn.dataset.minutes);
-    selectNotifyLeadMinutes(selectedNotifyLeadMinutes === minutes ? null : minutes);
-  });
-});
+function closeNotifyModal() {
+  notifyModalOverlay.classList.add('hidden');
+  notifyModalEventId = null;
+}
 
-notifyOtherBtn.addEventListener('click', () => {
-  const isOther = selectedNotifyLeadMinutes !== null && !NOTIFY_FIXED_MINUTES.includes(selectedNotifyLeadMinutes);
-  if (isOther) {
-    selectNotifyLeadMinutes(null);
-    return;
+async function chooseNotifyPreference(minutes) {
+  const eventId = notifyModalEventId;
+  if (!eventId) return;
+  if (minutes !== null && !(await ensureNotifyPermission())) return;
+
+  try {
+    await fetchJSON(`/api/events/${eventId}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notifyLeadMinutes: minutes }),
+    });
+    const ev = events.find(e => e.id === eventId);
+    if (ev) {
+      if (!ev.notifications) ev.notifications = {};
+      if (minutes === null) delete ev.notifications[currentMember.id];
+      else ev.notifications[currentMember.id] = { leadMinutes: minutes };
+    }
+  } catch (err) {
+    console.error('Préférence de rappel :', err);
   }
-  const base = selectedNotifyLeadMinutes || 0;
-  notifyOtherDays.value = Math.floor(base / 1440);
-  notifyOtherHours.value = Math.floor((base % 1440) / 60);
-  notifyOtherMinutes.value = base % 60;
-  notifyOtherPopup.classList.remove('hidden');
+  closeNotifyModal();
+}
+
+notifyChoiceOptions.querySelectorAll('.notify-option[data-minutes]').forEach(btn => {
+  btn.addEventListener('click', () => chooseNotifyPreference(Number(btn.dataset.minutes)));
 });
 
-notifyOtherConfirm.addEventListener('click', () => {
-  const days = Number(notifyOtherDays.value) || 0;
-  const hours = Number(notifyOtherHours.value) || 0;
-  const minutes = Number(notifyOtherMinutes.value) || 0;
-  closeNotifyOtherPopup();
-  selectNotifyLeadMinutes(days * 1440 + hours * 60 + minutes);
-});
-
-notifyClearBtn.addEventListener('click', () => {
-  closeNotifyOtherPopup();
-  selectNotifyLeadMinutes(null);
-});
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('#notifyOtherPopup, #notifyOtherBtn')) closeNotifyOtherPopup();
-});
+notifyNoneBtn.addEventListener('click', () => chooseNotifyPreference(null));
 
 // --- Icône d'événement ---
 // affichée en permanence à côté du titre, dans la grille (event-pill/event-bar)

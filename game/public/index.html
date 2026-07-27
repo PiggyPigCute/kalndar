@@ -84,33 +84,6 @@
         </div>
         <button type="button" class="notify-clear-btn disabled" id="iconClearBtn" aria-label="Retirer l'icône"></button>
       </div>
-      <div class="notify-row">
-        <span class="notify-row-label">Rappel avant l'événement</span>
-        <div class="notify-options" id="notifyOptions">
-          <button type="button" class="notify-option" data-minutes="1440">24h</button>
-          <button type="button" class="notify-option" data-minutes="60">1h</button>
-          <button type="button" class="notify-option" data-minutes="15">¼h</button>
-          <button type="button" class="notify-option" id="notifyOtherBtn">...</button>
-        </div>
-        <button type="button" class="notify-clear-btn disabled" id="notifyClearBtn" aria-label="Annuler le rappel"></button>
-        <div class="notify-other-popup hidden" id="notifyOtherPopup">
-          <div class="notify-other-fields">
-            <label>
-              Jours
-              <input type="number" id="notifyOtherDays" min="0" value="0">
-            </label>
-            <label>
-              Heures
-              <input type="number" id="notifyOtherHours" min="0" value="0">
-            </label>
-            <label>
-              Minutes
-              <input type="number" id="notifyOtherMinutes" min="0" value="0">
-            </label>
-          </div>
-          <button type="button" id="notifyOtherConfirm" class="primary-btn">OK</button>
-        </div>
-      </div>
       <label>
         Membres concernés
         <div id="fieldMembers" class="member-checkboxes"></div>
@@ -148,6 +121,18 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<div id="notifyModalOverlay" class="modal-overlay hidden">
+  <div class="modal notify-modal">
+    <h2>🔔 Notifier</h2>
+    <div class="notify-options" id="notifyChoiceOptions">
+      <button type="button" class="notify-option" data-minutes="1440">1 jour</button>
+      <button type="button" class="notify-option" data-minutes="60">1h</button>
+      <button type="button" class="notify-option" data-minutes="15">15min</button>
+    </div>
+    <button type="button" class="notify-none-btn" id="notifyNoneBtn">Ne pas notifier</button>
   </div>
 </div>
 

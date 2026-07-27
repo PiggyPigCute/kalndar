@@ -355,7 +355,7 @@ function applyOwnNotifyPreference(event, memberId, notifyLeadMinutes) {
 }
 
 app.post('/api/events', requireAuth, (req, res) => {
-  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes, icon } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, icon } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
@@ -380,7 +380,6 @@ app.post('/api/events', requireAuth, (req, res) => {
     icon: icon || null,
     notifications: {},
   };
-  applyOwnNotifyPreference(event, req.memberId, notifyLeadMinutes);
 
   events.push(event);
   saveEvents();
@@ -404,7 +403,7 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   const event = events.find(e => e.id === req.params.id);
   if (!event) return res.status(404).json({ error: 'Événement introuvable' });
 
-  const { title, date, endDate, startTime, endTime, description, memberIds, notifyLeadMinutes, icon } = req.body || {};
+  const { title, date, endDate, startTime, endTime, description, memberIds, icon } = req.body || {};
 
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
   if (!isValidDate(date)) return res.status(400).json({ error: 'Date invalide' });
@@ -425,11 +424,23 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   event.description = typeof description === 'string' ? description.trim().slice(0, 2000) : '';
   event.memberIds = normalizedMemberIds;
   event.icon = icon || null;
-  applyOwnNotifyPreference(event, req.memberId, notifyLeadMinutes);
+  // event.notifications n'est pas touché ici : le rappel est personnel et se gère
+  // uniquement via POST /api/events/:id/notify, pas via ce formulaire partagé
 
   saveEvents();
   io.emit('events:changed');
   res.json(event);
+});
+
+// préférence de rappel personnelle de l'auteur de la requête pour cet événement,
+// affichée via la popup "🔔 Notifier" après la création/modification d'un événement
+app.post('/api/events/:id/notify', requireAuth, (req, res) => {
+  const event = events.find(e => e.id === req.params.id);
+  if (!event) return res.status(404).json({ error: 'Événement introuvable' });
+
+  applyOwnNotifyPreference(event, req.memberId, (req.body || {}).notifyLeadMinutes);
+  saveEvents();
+  res.status(204).end();
 });
 
 app.delete('/api/events/:id', requireAuth, (req, res) => {

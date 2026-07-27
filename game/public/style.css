@@ -700,20 +700,6 @@ body {
   mask-position: center;
 }
 
-.notify-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.notify-row-label {
-  flex-basis: 100%;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
 .notify-options {
   display: flex;
   border: 1px solid var(--border);
@@ -740,6 +726,39 @@ body {
   background: var(--accent);
   color: white;
   font-weight: 600;
+}
+
+.notify-modal {
+  max-width: 340px;
+  text-align: center;
+}
+
+.notify-modal h2 {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.notify-modal .notify-options {
+  justify-content: center;
+  margin: 0 auto 14px;
+  width: fit-content;
+}
+
+.notify-none-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.notify-none-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .notify-clear-btn {
@@ -781,45 +800,6 @@ body {
 .notify-clear-btn.disabled {
   opacity: 0.35;
   pointer-events: none;
-}
-
-.notify-other-popup {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 20;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.notify-other-fields {
-  display: flex;
-  gap: 10px;
-}
-
-.notify-other-fields label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.notify-other-fields input {
-  width: 64px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
 }
 
 .member-checkboxes {
