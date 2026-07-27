@@ -1429,9 +1429,11 @@ body {
   .app-shell { flex-direction: column; }
   .main-nav {
     position: fixed;
+    top: auto;
     bottom: 0;
     left: 0;
     right: 0;
+    height: auto;
     flex-direction: row;
     justify-content: space-around;
     gap: 0;
